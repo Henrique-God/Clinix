@@ -1,0 +1,6 @@
+@Clinix_HostAddress = http://localhost:5120
+
+GET {{Clinix_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
