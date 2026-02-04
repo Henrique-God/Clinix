@@ -27,19 +27,19 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDTO request)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest("Email e senha são obrigatórios.");
+            return BadRequest("Email and password are required.");
 
-        User? user = await userService.ValidateCredentialsAsync(request.Email, request.Password);
+        IUser? user = await userService.ValidateCredentialsAsync(request.Email, request.Password);
         if (user == null)
-            return Unauthorized("Credenciais inválidas.");
+            return Unauthorized("Invalid credentials.");
 
         string token = jwtService.GenerateToken(user);
         int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
 
-        return Ok(new LoginResponse
+        return Ok(new LoginResponseDTO
         {
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
@@ -48,19 +48,19 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDTO request)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Nome))
-            return BadRequest("Email, senha e nome são obrigatórios.");
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("Email, password and name are required.");
 
-        User? user = await userService.RegisterAsync(request);
+        IUser? user = await userService.RegisterAsync(request);
         if (user == null)
-            return BadRequest("E-mail já cadastrado.");
+            return BadRequest("Email already registered.");
 
         string token = jwtService.GenerateToken(user);
         int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
 
-        return StatusCode(201, new LoginResponse
+        return StatusCode(201, new LoginResponseDTO
         {
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),

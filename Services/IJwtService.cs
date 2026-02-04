@@ -4,5 +4,5 @@ namespace Clinix.Services;
 
 public interface IJwtService
 {
-    string GenerateToken(User user);
+    string GenerateToken(IUser user);
 }
