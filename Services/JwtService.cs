@@ -16,9 +16,9 @@ public class JwtService : IJwtService
         this.configuration = configuration;
     }
 
-    public string GenerateToken(User user)
+    public string GenerateToken(IUser user)
     {
-        string key = configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key não configurada.");
+        string key = configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured.");
         string issuer = configuration["Jwt:Issuer"] ?? "Clinix";
         string audience = configuration["Jwt:Audience"] ?? "Clinix";
         int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");

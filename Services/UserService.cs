@@ -1,49 +1,56 @@
+using Clinix.Data;
 using Clinix.Models;
 using Clinix.Models.DTOs;
+using Microsoft.EntityFrameworkCore;
 
 namespace Clinix.Services;
 
 public class UserService : IUserService
 {
-    private static readonly Dictionary<string, User> Users = new();
-    private static readonly object Lock = new();
+    private readonly IClinixDbContext context;
 
-    public Task<User?> RegisterAsync(RegisterRequest request)
+    public UserService(IClinixDbContext context)
     {
-        lock (Lock)
-        {
-            string emailLower = request.Email.Trim().ToLowerInvariant();
-            if (Users.ContainsKey(emailLower))
-                return Task.FromResult<User?>(null);
-
-            User user = new User
-            {
-                Id = Guid.NewGuid(),
-                Email = emailLower,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Nome = request.Nome.Trim(),
-                UserType = request.UserType,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            Users[emailLower] = user;
-            return Task.FromResult<User?>(user);
-        }
+        this.context = context;
     }
 
-    public Task<User?> ValidateCredentialsAsync(string email, string password)
+    public async Task<IUser?> RegisterAsync(RegisterRequestDTO request)
+    {
+        string emailLower = request.Email.Trim().ToLowerInvariant();
+
+        bool exists = await context.Users.AnyAsync(u => u.Email == emailLower);
+        if (exists)
+            return null;
+
+        IUser user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = emailLower,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Name = request.Name.Trim(),
+            UserType = UserType.User,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        return user;
+    }
+
+    public async Task<IUser?> ValidateCredentialsAsync(string email, string password)
     {
         string emailLower = email.Trim().ToLowerInvariant();
 
-        lock (Lock)
-        {
-            if (!Users.TryGetValue(emailLower, out User? user))
-                return Task.FromResult<User?>(null);
+        IUser? user = await context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == emailLower);
 
-            if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-                return Task.FromResult<User?>(null);
+        if (user == null)
+            return null;
 
-            return Task.FromResult<User?>(user);
-        }
+        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            return null;
+
+        return user;
     }
 }

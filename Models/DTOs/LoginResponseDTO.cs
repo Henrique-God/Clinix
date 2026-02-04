@@ -2,7 +2,7 @@ using Clinix.Models;
 
 namespace Clinix.Models.DTOs;
 
-public class LoginResponse
+public class LoginResponseDTO
 {
     public string Token { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
