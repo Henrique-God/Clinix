@@ -22,7 +22,7 @@ public class UserService : IUserService
         if (exists)
             return null;
 
-        IUser user = new User
+        User user = new User
         {
             Id = Guid.NewGuid(),
             Email = emailLower,
@@ -41,7 +41,7 @@ public class UserService : IUserService
     {
         string emailLower = email.Trim().ToLowerInvariant();
 
-        IUser? user = await context.Users
+        User? user = await context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == emailLower);
 
