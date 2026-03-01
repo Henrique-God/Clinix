@@ -1,25 +1,93 @@
-using Microsoft.AspNetCore.Http.HttpResults;
+using Clinix.Models;
+using Clinix.Models.DTOs;
+using Clinix.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
-namespace Clinix.Controllers
+namespace Clinix.Controllers;
+
+[ApiController]
+[Route("[controller]")]
+public class UsersController : ControllerBase
 {
-    [ApiController]
-    [Route("[controller]")]
-    public class UsersController : ControllerBase
+    private readonly IUserService userService;
+    private readonly IJwtService jwtService;
+    private readonly ILogger<UsersController> logger;
+    private readonly IConfiguration configuration;
+
+    public UsersController(
+        IUserService userService,
+        IJwtService jwtService,
+        ILogger<UsersController> logger,
+        IConfiguration configuration)
     {
+        this.userService = userService;
+        this.jwtService = jwtService;
+        this.logger = logger;
+        this.configuration = configuration;
+    }
 
-        private readonly ILogger<UsersController> _logger;
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequestDTO request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest("Email and password are required.");
 
-        public UsersController(ILogger<UsersController> logger)
+        IUser? user = await userService.ValidateCredentialsAsync(request.Email, request.Password);
+        if (user == null)
+            return Unauthorized("Invalid credentials.");
+
+        string token = jwtService.GenerateToken(user);
+        int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+
+        return Ok(new LoginResponseDTO
         {
-            _logger = logger;
-        }
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
+            UserType = user.UserType
+        });
+    }
 
-        [HttpGet]
-        [Route("hello-world")]
-        public IActionResult GetHelloWorld()
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDTO request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("Email, password and name are required.");
+
+        IUser? user = await userService.RegisterAsync(request);
+        if (user == null)
+            return BadRequest("Email already registered.");
+
+        string token = jwtService.GenerateToken(user);
+        int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+
+        return StatusCode(201, new LoginResponseDTO
         {
-            return Ok("Hello World!");
-        }
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
+            UserType = user.UserType
+        });
+    }
+
+    [Authorize]
+    [HttpGet("protected")]
+    public IActionResult Protected()
+    {
+        return Ok("Você está autenticado!");
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+        return Ok(new
+        {
+            userId,
+            email
+        });
     }
 }
