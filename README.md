@@ -1,8 +1,3 @@
-
-
-
-
-
 cd ~/LabSoft/Clinix/Frontend
 npx update-browserslist-db@latest
 cd ..
@@ -12,8 +7,10 @@ docker buildx build -t clinix-app .
 
 docker build -t clinix-app .
 
-# Rodar o container:
+# Rodar o container como e sem Development:
 docker run -d -p 8080:8080 --name clinix-container clinix-app
+
+docker run -d -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development --name clinix-container clinix-app
 
 # Acesso:
 http://localhost:8080
