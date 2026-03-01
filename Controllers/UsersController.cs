@@ -2,6 +2,8 @@ using Clinix.Models;
 using Clinix.Models.DTOs;
 using Clinix.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Clinix.Controllers;
 
@@ -65,6 +67,27 @@ public class UsersController : ControllerBase
             Token = token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
             UserType = user.UserType
+        });
+    }
+
+    [Authorize]
+    [HttpGet("protected")]
+    public IActionResult Protected()
+    {
+        return Ok("Você está autenticado!");
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+
+        return Ok(new
+        {
+            userId,
+            email
         });
     }
 }
