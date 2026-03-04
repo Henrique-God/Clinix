@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,7 +11,24 @@ namespace UsersAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(name: "users");
+            migrationBuilder.EnsureSchema(
+                name: "users");
+
+            migrationBuilder.CreateTable(
+                name: "ClinicalRecords",
+                schema: "users",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PatientId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ProfessionalId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Description = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClinicalRecords", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "Users",
@@ -41,7 +58,13 @@ namespace UsersAPI.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "Users", schema: "users");
+            migrationBuilder.DropTable(
+                name: "ClinicalRecords",
+                schema: "users");
+
+            migrationBuilder.DropTable(
+                name: "Users",
+                schema: "users");
         }
     }
 }
