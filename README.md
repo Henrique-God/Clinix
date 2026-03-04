@@ -1,5 +1,19 @@
 # Clinix — Plataforma de Saúde (Microsserviços)
 
+## Resumo pra rodar (Matheus)
+
+No diretório raiz:
+
+```bash
+cp .env.example .env
+```
+
+Altere o .env com seus respectivos valores, depois só rodar:
+
+```bash
+docker-compose up --build
+```
+
 ## Arquitetura
 
 ```
