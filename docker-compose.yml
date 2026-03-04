@@ -6,13 +6,13 @@ services:
     ports:
       - "5001:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION}
-      - Jwt__Key=${JWT_KEY}
-      - Jwt__Issuer=Clinix
-      - Jwt__Audience=Clinix
-      - Aws__Region=${AWS_REGION}
-      - Aws__S3BucketName=${S3_BUCKET}
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+      Aws__Region: ${AWS_REGION}
+      Aws__S3BucketName: ${S3_BUCKET}
     restart: unless-stopped
 
   appointments-api:
@@ -22,11 +22,11 @@ services:
     ports:
       - "5002:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=${DB_CONNECTION}
-      - Jwt__Key=${JWT_KEY}
-      - Jwt__Issuer=Clinix
-      - Jwt__Audience=Clinix
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
     depends_on:
       - users-api
     restart: unless-stopped
@@ -38,11 +38,11 @@ services:
     ports:
       - "5003:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Jwt__Key=${JWT_KEY}
-      - Jwt__Issuer=Clinix
-      - Jwt__Audience=Clinix
-      - OpenAi__ApiKey=${OPENAI_KEY}
+      ASPNETCORE_ENVIRONMENT: Development
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+      OpenAi__ApiKey: ${OPENAI_KEY}
     depends_on:
       - users-api
     restart: unless-stopped
