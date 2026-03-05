@@ -1,0 +1,59 @@
+services:
+  users-api:
+    build:
+      context: .
+      dockerfile: Backend/UsersAPI/Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+      Aws__Region: ${AWS_REGION}
+      Aws__S3BucketName: ${S3_BUCKET}
+    restart: unless-stopped
+
+  appointments-api:
+    build:
+      context: .
+      dockerfile: Backend/AppointmentsAPI/Dockerfile
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+    depends_on:
+      - users-api
+    restart: unless-stopped
+
+  chatbot-api:
+    build:
+      context: .
+      dockerfile: Backend/ChatBotAPI/Dockerfile
+    ports:
+      - "5003:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+      OpenAi__ApiKey: ${OPENAI_KEY}
+    depends_on:
+      - users-api
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - users-api
+      - appointments-api
+      - chatbot-api
+    restart: unless-stopped
