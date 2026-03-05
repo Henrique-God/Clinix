@@ -91,3 +91,7 @@ nunit-*.xml
 *.suo
 *.userosscache
 *.sln.docstates
+
+
+#Arquivo env
+.env
