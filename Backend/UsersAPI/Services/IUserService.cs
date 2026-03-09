@@ -5,6 +5,9 @@ namespace UsersAPI.Services;
 
 public interface IUserService
 {
-    Task<IUser?> RegisterAsync(RegisterRequestDTO request);
+    Task<UserRegistrationResult> RegisterPatientAsync(RegisterRequestDTO request);
+    Task<UserRegistrationResult> RegisterDoctorAsync(RegisterDoctorRequestDTO request);
     Task<IUser?> ValidateCredentialsAsync(string email, string password);
+    Task<bool> IsEmailTakenAsync(string email);
+    Task<bool> IsProfessionalRegisterTakenAsync(string professionalRegister);
 }
