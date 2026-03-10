@@ -12,7 +12,10 @@ public class UsersDbContext : DbContext, IUsersDbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<DoctorProfile> DoctorProfiles { get; set; }
-    public DbSet<ClinicalRecord> ClinicalRecords { get; set; }
+    public DbSet<PatientClinicalRecord> PatientClinicalRecords { get; set; }
+    public DbSet<ClinicalRecordEntry> ClinicalRecordEntries { get; set; }
+    public DbSet<ClinicalDocument> ClinicalDocuments { get; set; }
+    public DbSet<ClinicalRecordAccessGrant> ClinicalRecordAccessGrants { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,10 +46,61 @@ public class UsersDbContext : DbContext, IUsersDbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<ClinicalRecord>(entity =>
+        modelBuilder.Entity<PatientClinicalRecord>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.PatientId).IsUnique();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClinicalRecordEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.PatientId, e.CreatedAt });
+            entity.HasIndex(e => e.AppointmentId);
+            entity.Property(e => e.Title).HasMaxLength(256);
             entity.Property(e => e.Description).HasMaxLength(4000);
+
+            entity.HasOne(e => e.ClinicalRecord)
+                .WithMany(e => e.Entries)
+                .HasForeignKey(e => e.ClinicalRecordId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClinicalDocument>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ClinicalRecordEntryId, e.CreatedAt });
+            entity.Property(e => e.FileName).HasMaxLength(256);
+            entity.Property(e => e.StoredFileName).HasMaxLength(256);
+            entity.Property(e => e.ContentType).HasMaxLength(128);
+            entity.Property(e => e.S3Key).HasMaxLength(512);
+
+            entity.HasOne(e => e.ClinicalRecordEntry)
+                .WithMany(e => e.Documents)
+                .HasForeignKey(e => e.ClinicalRecordEntryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClinicalRecordAccessGrant>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.PatientId, e.DoctorId, e.Status });
+            entity.Property(e => e.Reason).HasMaxLength(512);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.PatientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
