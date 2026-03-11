@@ -120,11 +120,16 @@ This file stores high-value technical context for future chats focused on `Backe
 ## Testing status
 - Integration tests cover every current auth endpoint.
 - Integration tests cover every clinical record v2 endpoint.
+- Every new feature/endpoint must include automated tests validating happy path, input validation, and authorization/security behavior.
+- Whenever code changes are made, run the automated tests and confirm nothing regressed before committing.
 - Test project: `Backend/UsersAPI.Tests`.
 - Main command:
 ```powershell
 dotnet test Backend/UsersAPI.Tests/UsersAPI.Tests.csproj
 ```
+
+## Code style rules
+- Do not use `var` in `UsersAPI` and `UsersAPI.Tests`; always use explicit class/interface types when available.
 
 ## Security and robustness notes
 - Keep `appsettings.json` with safe defaults/placeholders only.

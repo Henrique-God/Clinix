@@ -18,7 +18,7 @@ public class S3StorageService : IS3StorageService
     {
         string bucketName = GetBucketName();
 
-        var request = new PutObjectRequest
+        PutObjectRequest request = new PutObjectRequest
         {
             BucketName = bucketName,
             Key = fileName,
@@ -36,7 +36,7 @@ public class S3StorageService : IS3StorageService
         string bucketName = GetBucketName();
         GetObjectResponse response = await amazonS3.GetObjectAsync(bucketName, fileName);
 
-        var memoryStream = new MemoryStream();
+        MemoryStream memoryStream = new MemoryStream();
         await response.ResponseStream.CopyToAsync(memoryStream);
         memoryStream.Position = 0;
         return memoryStream;

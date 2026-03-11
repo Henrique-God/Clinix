@@ -35,7 +35,7 @@ public class AppointmentRelationshipService : IAppointmentRelationshipService
 
         try
         {
-            var response = await httpClient.GetFromJsonAsync<AppointmentOwnershipResponse>(
+            AppointmentOwnershipResponse? response = await httpClient.GetFromJsonAsync<AppointmentOwnershipResponse>(
                 $"internal/appointments/{appointmentId}/ownership?patientId={patientId}&doctorId={doctorId}",
                 cancellationToken);
 
@@ -58,7 +58,7 @@ public class AppointmentRelationshipService : IAppointmentRelationshipService
 
         try
         {
-            var response = await httpClient.GetFromJsonAsync<AppointmentRelationshipResponse>(
+            AppointmentRelationshipResponse? response = await httpClient.GetFromJsonAsync<AppointmentRelationshipResponse>(
                 $"internal/appointments/relationship-check?patientId={patientId}&doctorId={doctorId}&mode={mode}",
                 cancellationToken);
 
