@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -21,10 +21,67 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     }
 
     [Fact]
+    public async Task ProtectedEndpointsReturnUnauthorizedWithoutAuthentication()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid patientId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
+        Guid documentId = Guid.NewGuid();
+        Guid grantId = Guid.NewGuid();
+
+        using HttpClient client = factory.CreateClient();
+        using MultipartFormDataContent uploadContent = new MultipartFormDataContent();
+        using ByteArrayContent fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("content"));
+        fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
+        uploadContent.Add(fileContent, "file", "file.pdf");
+
+        HttpResponseMessage getClinicalRecord = await client.GetAsync($"/patients/{patientId}/clinical-record");
+        HttpResponseMessage getEntries = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
+        HttpResponseMessage getEntry = await client.GetAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
+        HttpResponseMessage createEntry = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/entries", new CreateClinicalRecordEntryRequestDTO
+        {
+            EntryType = ClinicalRecordEntryType.Anamnesis,
+            Title = "Title",
+            Description = "Description",
+            IsVisibleToPatient = true
+        });
+        HttpResponseMessage updateEntry = await client.PutAsJsonAsync($"/patients/{patientId}/clinical-record/entries/{entryId}", new UpdateClinicalRecordEntryRequestDTO
+        {
+            Title = "Updated",
+            Description = "Updated description",
+            IsVisibleToPatient = true
+        });
+        HttpResponseMessage deleteEntry = await client.DeleteAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
+        HttpResponseMessage uploadDocument = await client.PostAsync($"/patients/{patientId}/clinical-record/entries/{entryId}/documents", uploadContent);
+        HttpResponseMessage downloadDocument = await client.GetAsync($"/patients/{patientId}/clinical-record/documents/{documentId}");
+        HttpResponseMessage deleteDocument = await client.DeleteAsync($"/patients/{patientId}/clinical-record/documents/{documentId}");
+        HttpResponseMessage getAccessGrants = await client.GetAsync($"/patients/{patientId}/clinical-record/access-grants");
+        HttpResponseMessage createGrant = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/access-grants", new CreateClinicalRecordAccessGrantRequestDTO
+        {
+            DoctorId = Guid.NewGuid(),
+            Reason = "Reason"
+        });
+        HttpResponseMessage revokeGrant = await client.PatchAsync($"/patients/{patientId}/clinical-record/access-grants/{grantId}/revoke", null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, getClinicalRecord.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, getEntries.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, getEntry.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, createEntry.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, updateEntry.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, deleteEntry.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, uploadDocument.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, downloadDocument.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, deleteDocument.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, getAccessGrants.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, createGrant.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, revokeGrant.StatusCode);
+    }
+
+    [Fact]
     public async Task GetClinicalRecordReturnsSummaryForPatient()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -40,28 +97,88 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.GetAsync($"/patients/{patientId}/clinical-record");
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalRecordSummaryDTO>();
+        ClinicalRecordSummaryDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordSummaryDTO>();
         Assert.NotNull(body);
         Assert.Equal(patientId, body.PatientId);
+    }
+
+    [Fact]
+    public async Task GetClinicalRecordReturnsForbiddenForDifferentPatientUser()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid patientId = Guid.NewGuid();
+        Guid otherPatientId = Guid.NewGuid();
+
+        await factory.SeedAsync(async context =>
+        {
+            context.Users.Add(BuildUser(patientId, UserType.User));
+            context.Users.Add(BuildUser(otherPatientId, UserType.User));
+            await Task.CompletedTask;
+        });
+
+        using HttpClient client = CreateAuthenticatedClient(otherPatientId, UserType.User);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
     public async Task GetEntriesReturnsForbiddenForDoctorWithoutGrant()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
 
         await SeedUsersAsync(patientId, doctorId);
         factory.FakeAppointmentRelationshipService.HasScheduledOrCompletedAppointmentAsyncHandler =
             (_, _, _) => Task.FromResult(true);
 
-        using var client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
-        var response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetEntriesReturnsForbiddenForDoctorWithoutScheduledOrCompletedAppointment()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid clinicalRecordId = Guid.NewGuid();
+
+        await factory.SeedAsync(async context =>
+        {
+            SeedUsers(context, patientId, doctorId);
+            context.PatientClinicalRecords.Add(new PatientClinicalRecord
+            {
+                Id = clinicalRecordId,
+                PatientId = patientId,
+                CreatedAt = DateTime.UtcNow.AddDays(-2),
+                UpdatedAt = DateTime.UtcNow.AddDays(-1)
+            });
+            context.ClinicalRecordAccessGrants.Add(new ClinicalRecordAccessGrant
+            {
+                Id = Guid.NewGuid(),
+                PatientId = patientId,
+                DoctorId = doctorId,
+                GrantedByPatientId = patientId,
+                Status = ClinicalRecordAccessGrantStatus.Active,
+                StartAt = DateTime.UtcNow.AddDays(-1),
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            });
+            await Task.CompletedTask;
+        });
+
+        factory.FakeAppointmentRelationshipService.HasScheduledOrCompletedAppointmentAsyncHandler =
+            (_, _, _) => Task.FromResult(false);
+
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -70,9 +187,9 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task GetEntriesReturnsEntriesForAuthorizedDoctor()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
-        var clinicalRecordId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid clinicalRecordId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -115,11 +232,11 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         factory.FakeAppointmentRelationshipService.HasScheduledOrCompletedAppointmentAsyncHandler =
             (_, _, _) => Task.FromResult(true);
 
-        using var client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
-        var response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordEntryResponseDTO>>();
+        List<ClinicalRecordEntryResponseDTO>? body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordEntryResponseDTO>>();
         Assert.NotNull(body);
         Assert.Single(body);
         Assert.Equal("Retorno", body[0].Title);
@@ -129,9 +246,9 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task GetEntryReturnsEntryById()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var clinicalRecordId = Guid.NewGuid();
-        var entryId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid clinicalRecordId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -160,20 +277,100 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
+        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal(entryId, body.Id);
+    }
+
+    [Fact]
+    public async Task CreateEntryReturnsForbiddenForDoctorWithoutCompletedAppointment()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+
+        await factory.SeedAsync(async context =>
+        {
+            SeedUsers(context, patientId, doctorId);
+            context.ClinicalRecordAccessGrants.Add(new ClinicalRecordAccessGrant
+            {
+                Id = Guid.NewGuid(),
+                PatientId = patientId,
+                DoctorId = doctorId,
+                GrantedByPatientId = patientId,
+                Status = ClinicalRecordAccessGrantStatus.Active,
+                StartAt = DateTime.UtcNow.AddDays(-1),
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            });
+            await Task.CompletedTask;
+        });
+
+        factory.FakeAppointmentRelationshipService.HasCompletedAppointmentAsyncHandler =
+            (_, _, _) => Task.FromResult(false);
+
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/entries", new CreateClinicalRecordEntryRequestDTO
+        {
+            EntryType = ClinicalRecordEntryType.Anamnesis,
+            Title = "Anotacao",
+            Description = "Descricao",
+            IsVisibleToPatient = true
+        });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateEntryReturnsForbiddenWhenAppointmentDoesNotBelongToDoctorAndPatient()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid appointmentId = Guid.NewGuid();
+
+        await factory.SeedAsync(async context =>
+        {
+            SeedUsers(context, patientId, doctorId);
+            context.ClinicalRecordAccessGrants.Add(new ClinicalRecordAccessGrant
+            {
+                Id = Guid.NewGuid(),
+                PatientId = patientId,
+                DoctorId = doctorId,
+                GrantedByPatientId = patientId,
+                Status = ClinicalRecordAccessGrantStatus.Active,
+                StartAt = DateTime.UtcNow.AddDays(-1),
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            });
+            await Task.CompletedTask;
+        });
+
+        factory.FakeAppointmentRelationshipService.HasCompletedAppointmentAsyncHandler =
+            (_, _, _) => Task.FromResult(true);
+        factory.FakeAppointmentRelationshipService.IsAppointmentOwnedByDoctorAndPatientAsyncHandler =
+            (_, _, _, _) => Task.FromResult(false);
+
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/entries", new CreateClinicalRecordEntryRequestDTO
+        {
+            EntryType = ClinicalRecordEntryType.Document,
+            Title = "Pedido de exame",
+            Description = "Detalhes",
+            AppointmentId = appointmentId,
+            IsVisibleToPatient = true
+        });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
     public async Task CreateEntryReturnsCreatedForPatient()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -181,8 +378,8 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/entries", new CreateClinicalRecordEntryRequestDTO
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/entries", new CreateClinicalRecordEntryRequestDTO
         {
             EntryType = ClinicalRecordEntryType.Anamnesis,
             Title = "Queixa principal",
@@ -191,7 +388,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
+        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal("Queixa principal", body.Title);
     }
@@ -200,9 +397,9 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task UpdateEntryReturnsOkForAuthor()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var recordId = Guid.NewGuid();
-        var entryId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -231,8 +428,8 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.PutAsJsonAsync($"/patients/{patientId}/clinical-record/entries/{entryId}", new UpdateClinicalRecordEntryRequestDTO
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.PutAsJsonAsync($"/patients/{patientId}/clinical-record/entries/{entryId}", new UpdateClinicalRecordEntryRequestDTO
         {
             Title = "Atualizado",
             Description = "Descricao nova.",
@@ -240,7 +437,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
+        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal("Atualizado", body.Title);
         Assert.False(body.IsVisibleToPatient);
@@ -250,9 +447,9 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task DeleteEntryReturnsNoContentForAuthor()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var recordId = Guid.NewGuid();
-        var entryId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -281,8 +478,8 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.DeleteAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.DeleteAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
@@ -291,11 +488,11 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task UploadDocumentReturnsCreatedForAuthorizedDoctor()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
-        var appointmentId = Guid.NewGuid();
-        var recordId = Guid.NewGuid();
-        var entryId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid appointmentId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -343,16 +540,16 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
                     && requestedPatientId == patientId
                     && requestedDoctorId == doctorId);
 
-        using var client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
-        using var content = new MultipartFormDataContent();
-        using var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("document-content"));
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        using MultipartFormDataContent content = new MultipartFormDataContent();
+        using ByteArrayContent fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("document-content"));
         fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
         content.Add(fileContent, "file", "pedido.pdf");
 
-        var response = await client.PostAsync($"/patients/{patientId}/clinical-record/entries/{entryId}/documents", content);
+        HttpResponseMessage response = await client.PostAsync($"/patients/{patientId}/clinical-record/entries/{entryId}/documents", content);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalDocumentResponseDTO>();
+        ClinicalDocumentResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalDocumentResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal("pedido.pdf", body.FileName);
         Assert.Single(factory.FakeS3StorageService.Objects);
@@ -362,11 +559,11 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task DownloadDocumentReturnsFileForAuthorizedDoctor()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
-        var recordId = Guid.NewGuid();
-        var entryId = Guid.NewGuid();
-        var documentId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
+        Guid documentId = Guid.NewGuid();
         const string s3Key = "clinical-records/test/document.pdf";
 
         await factory.SeedAsync(async context =>
@@ -422,8 +619,8 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         factory.FakeAppointmentRelationshipService.HasScheduledOrCompletedAppointmentAsyncHandler =
             (_, _, _) => Task.FromResult(true);
 
-        using var client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
-        var response = await client.GetAsync($"/patients/{patientId}/clinical-record/documents/{documentId}");
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/documents/{documentId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
@@ -433,12 +630,12 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task DeleteDocumentReturnsNoContentForUploader()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
-        var appointmentId = Guid.NewGuid();
-        var recordId = Guid.NewGuid();
-        var entryId = Guid.NewGuid();
-        var documentId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid appointmentId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
+        Guid documentId = Guid.NewGuid();
         const string s3Key = "clinical-records/test/delete.pdf";
 
         await factory.SeedAsync(async context =>
@@ -497,8 +694,8 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         factory.FakeAppointmentRelationshipService.IsAppointmentOwnedByDoctorAndPatientAsyncHandler =
             (_, _, _, _) => Task.FromResult(true);
 
-        using var client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
-        var response = await client.DeleteAsync($"/patients/{patientId}/clinical-record/documents/{documentId}");
+        using HttpClient client = CreateAuthenticatedClient(doctorId, UserType.Doctor);
+        HttpResponseMessage response = await client.DeleteAsync($"/patients/{patientId}/clinical-record/documents/{documentId}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(factory.FakeS3StorageService.Objects);
@@ -508,8 +705,8 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task GetAccessGrantsReturnsPatientGrants()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -528,11 +725,11 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.GetAsync($"/patients/{patientId}/clinical-record/access-grants");
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/access-grants");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordAccessGrantResponseDTO>>();
+        List<ClinicalRecordAccessGrantResponseDTO>? body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordAccessGrantResponseDTO>>();
         Assert.NotNull(body);
         Assert.Single(body);
     }
@@ -541,13 +738,13 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task CreateAccessGrantReturnsCreatedForPatient()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
 
         await SeedUsersAsync(patientId, doctorId);
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/access-grants", new CreateClinicalRecordAccessGrantRequestDTO
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/patients/{patientId}/clinical-record/access-grants", new CreateClinicalRecordAccessGrantRequestDTO
         {
             DoctorId = doctorId,
             Reason = "Compartilhar historico",
@@ -555,7 +752,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>();
+        ClinicalRecordAccessGrantResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal(doctorId, body.DoctorId);
     }
@@ -564,9 +761,9 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
     public async Task RevokeAccessGrantReturnsOkForPatient()
     {
         await factory.ResetDatabaseAsync();
-        var patientId = Guid.NewGuid();
-        var doctorId = Guid.NewGuid();
-        var grantId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid doctorId = Guid.NewGuid();
+        Guid grantId = Guid.NewGuid();
 
         await factory.SeedAsync(async context =>
         {
@@ -584,18 +781,18 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
             await Task.CompletedTask;
         });
 
-        using var client = CreateAuthenticatedClient(patientId, UserType.User);
-        var response = await client.PatchAsync($"/patients/{patientId}/clinical-record/access-grants/{grantId}/revoke", null);
+        using HttpClient client = CreateAuthenticatedClient(patientId, UserType.User);
+        HttpResponseMessage response = await client.PatchAsync($"/patients/{patientId}/clinical-record/access-grants/{grantId}/revoke", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>();
+        ClinicalRecordAccessGrantResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal(ClinicalRecordAccessGrantStatus.Revoked, body.Status);
     }
 
     private HttpClient CreateAuthenticatedClient(Guid userId, UserType userType)
     {
-        var client = factory.CreateClient();
+        HttpClient client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-UserId", userId.ToString());
         client.DefaultRequestHeaders.Add("X-Test-Email", $"{userType.ToString().ToLowerInvariant()}@clinix.local");
         client.DefaultRequestHeaders.Add("X-Test-Role", userType.ToString());
@@ -627,3 +824,4 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         CreatedAt = DateTime.UtcNow
     };
 }
+

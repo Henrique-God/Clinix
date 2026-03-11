@@ -17,13 +17,13 @@ builder.Services.AddScoped<IS3StorageService, S3StorageService>();
 builder.Services.Configure<AppointmentsOptions>(builder.Configuration.GetSection(AppointmentsOptions.SectionName));
 builder.Services.AddHttpClient<IAppointmentRelationshipService, AppointmentRelationshipService>((sp, client) =>
 {
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppointmentsOptions>>().Value;
+    AppointmentsOptions options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppointmentsOptions>>().Value;
     if (!string.IsNullOrWhiteSpace(options.BaseUrl))
         client.BaseAddress = new Uri(options.BaseUrl);
 });
 builder.Services.AddSingleton<IAmazonS3>(_ =>
 {
-    var region = builder.Configuration["Aws:Region"] ?? "us-east-1";
+    string region = builder.Configuration["Aws:Region"] ?? "us-east-1";
     return new AmazonS3Client(RegionEndpoint.GetBySystemName(region));
 });
 
@@ -67,8 +67,8 @@ WebApplication app = builder.Build();
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
+    using IServiceScope scope = app.Services.CreateScope();
+    UsersDbContext db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
     db.Database.Migrate();
 }
 
