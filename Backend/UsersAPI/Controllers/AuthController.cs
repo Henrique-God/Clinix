@@ -58,16 +58,6 @@ public class AuthController : ControllerBase
         return StatusCode(201, BuildLoginResponse(result.User!));
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequestDTO request)
-    {
-        UserRegistrationResult result = await userService.RegisterPatientAsync(request);
-        if (!result.Success)
-            return BadRequest(MapRegistrationError(result.Error));
-
-        return StatusCode(201, BuildLoginResponse(result.User!));
-    }
-
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
