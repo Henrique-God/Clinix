@@ -11,6 +11,9 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: Clinix
       Jwt__Audience: Clinix
+      Appointments__BaseUrl: http://appointments-api:8080/
+      Appointments__InternalApiKey: ${APPOINTMENTS_INTERNAL_API_KEY}
+      InternalServices__ApiKey: ${USERS_INTERNAL_API_KEY}
       Aws__Region: ${AWS_REGION}
       Aws__S3BucketName: ${S3_BUCKET}
     restart: unless-stopped
@@ -27,6 +30,11 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: Clinix
       Jwt__Audience: Clinix
+      UsersApi__BaseUrl: http://users-api:8080/
+      UsersApi__InternalApiKey: ${USERS_INTERNAL_API_KEY}
+      ClinicalRecords__BaseUrl: http://users-api:8080/
+      ClinicalRecords__InternalApiKey: ${USERS_INTERNAL_API_KEY}
+      InternalServices__ApiKey: ${APPOINTMENTS_INTERNAL_API_KEY}
     depends_on:
       - users-api
     restart: unless-stopped

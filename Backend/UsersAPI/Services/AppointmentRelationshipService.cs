@@ -35,9 +35,13 @@ public class AppointmentRelationshipService : IAppointmentRelationshipService
 
         try
         {
-            var response = await httpClient.GetFromJsonAsync<AppointmentOwnershipResponse>(
-                $"internal/appointments/{appointmentId}/ownership?patientId={patientId}&doctorId={doctorId}",
-                cancellationToken);
+            using var request = CreateInternalRequest(
+                $"internal/appointments/{appointmentId}/ownership?patientId={patientId}&doctorId={doctorId}");
+            using var httpResponse = await httpClient.SendAsync(request, cancellationToken);
+            if (!httpResponse.IsSuccessStatusCode)
+                return false;
+
+            var response = await httpResponse.Content.ReadFromJsonAsync<AppointmentOwnershipResponse>(cancellationToken: cancellationToken);
 
             return response?.Matches ?? false;
         }
@@ -58,9 +62,13 @@ public class AppointmentRelationshipService : IAppointmentRelationshipService
 
         try
         {
-            var response = await httpClient.GetFromJsonAsync<AppointmentRelationshipResponse>(
-                $"internal/appointments/relationship-check?patientId={patientId}&doctorId={doctorId}&mode={mode}",
-                cancellationToken);
+            using var request = CreateInternalRequest(
+                $"internal/appointments/relationship-check?patientId={patientId}&doctorId={doctorId}&mode={mode}");
+            using var httpResponse = await httpClient.SendAsync(request, cancellationToken);
+            if (!httpResponse.IsSuccessStatusCode)
+                return false;
+
+            var response = await httpResponse.Content.ReadFromJsonAsync<AppointmentRelationshipResponse>(cancellationToken: cancellationToken);
 
             return response?.HasRelationship ?? false;
         }
@@ -69,6 +77,15 @@ public class AppointmentRelationshipService : IAppointmentRelationshipService
             logger.LogWarning(ex, "Could not validate appointment relationship for patient {PatientId} and doctor {DoctorId}.", patientId, doctorId);
             return false;
         }
+    }
+
+    private HttpRequestMessage CreateInternalRequest(string relativeUrl)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, relativeUrl);
+        if (!string.IsNullOrWhiteSpace(options.InternalApiKey))
+            request.Headers.Add("X-Internal-Api-Key", options.InternalApiKey);
+
+        return request;
     }
 
     private sealed class AppointmentRelationshipResponse
