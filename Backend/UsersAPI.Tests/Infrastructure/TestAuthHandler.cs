@@ -3,6 +3,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 
 namespace UsersAPI.Tests.Infrastructure;
 
@@ -20,29 +21,29 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue("X-Test-UserId", out var userIdValues))
+        if (!Request.Headers.TryGetValue("X-Test-UserId", out StringValues userIdValues))
         {
             return Task.FromResult(AuthenticateResult.Fail("Missing X-Test-UserId header."));
         }
 
-        var userId = userIdValues.ToString();
-        var email = Request.Headers.TryGetValue("X-Test-Email", out var emailValues)
+        string userId = userIdValues.ToString();
+        string email = Request.Headers.TryGetValue("X-Test-Email", out StringValues emailValues)
             ? emailValues.ToString()
             : "test@clinix.local";
-        var role = Request.Headers.TryGetValue("X-Test-Role", out var roleValues)
+        string role = Request.Headers.TryGetValue("X-Test-Role", out StringValues roleValues)
             ? roleValues.ToString()
             : "User";
 
-        var claims = new List<Claim>
+        List<Claim> claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Email, email),
             new(ClaimTypes.Role, role)
         };
 
-        var identity = new ClaimsIdentity(claims, SchemeName);
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, SchemeName);
+        ClaimsIdentity identity = new ClaimsIdentity(claims, SchemeName);
+        ClaimsPrincipal principal = new ClaimsPrincipal(identity);
+        AuthenticationTicket ticket = new AuthenticationTicket(principal, SchemeName);
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }

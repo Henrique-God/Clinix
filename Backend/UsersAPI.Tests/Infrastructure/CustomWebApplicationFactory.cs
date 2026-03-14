@@ -58,8 +58,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
     public async Task SeedAsync(Func<UsersDbContext, Task> seedAction)
     {
-        using var scope = Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
+        using IServiceScope scope = Services.CreateScope();
+        UsersDbContext context = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
         await seedAction(context);
         await context.SaveChangesAsync();
     }
@@ -69,8 +69,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         FakeUserService.Reset();
         FakeAppointmentRelationshipService.Reset();
         FakeS3StorageService.Reset();
-        using var scope = Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
+        using IServiceScope scope = Services.CreateScope();
+        UsersDbContext context = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
         await context.Database.EnsureDeletedAsync();
         await context.Database.EnsureCreatedAsync();
     }
