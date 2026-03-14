@@ -31,7 +31,7 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetClinicalRecord(Guid patientId, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeReadAsync(actor, patientId, cancellationToken));
 
@@ -40,7 +40,7 @@ public class PatientClinicalRecordsController : ControllerBase
 
         PatientClinicalRecord record = await EnsureClinicalRecordAsync(patientId, cancellationToken);
 
-        var summary = new ClinicalRecordSummaryDTO
+        ClinicalRecordSummaryDTO summary = new ClinicalRecordSummaryDTO
         {
             ClinicalRecordId = record.Id,
             PatientId = patientId,
@@ -63,14 +63,14 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpGet("entries")]
     public async Task<IActionResult> GetEntries(Guid patientId, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeReadAsync(actor, patientId, cancellationToken));
 
         if (authorizationFailure is not null)
             return authorizationFailure;
 
-        var entries = await context.ClinicalRecordEntries
+        List<ClinicalRecordEntry> entries = await context.ClinicalRecordEntries
             .AsNoTracking()
             .Include(e => e.Documents.Where(d => !d.DeletedAt.HasValue))
             .Where(e => e.PatientId == patientId && !e.DeletedAt.HasValue)
@@ -83,7 +83,7 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpGet("entries/{entryId:guid}")]
     public async Task<IActionResult> GetEntry(Guid patientId, Guid entryId, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeReadAsync(actor, patientId, cancellationToken));
 
@@ -104,7 +104,7 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpPost("entries")]
     public async Task<IActionResult> CreateEntry(Guid patientId, [FromBody] CreateClinicalRecordEntryRequestDTO request, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeWriteAsync(actor, patientId, request.AppointmentId, cancellationToken));
 
@@ -120,7 +120,7 @@ public class PatientClinicalRecordsController : ControllerBase
         PatientClinicalRecord record = await EnsureClinicalRecordAsync(patientId, cancellationToken);
         DateTime utcNow = DateTime.UtcNow;
 
-        var entry = new ClinicalRecordEntry
+        ClinicalRecordEntry entry = new ClinicalRecordEntry
         {
             Id = Guid.NewGuid(),
             ClinicalRecordId = record.Id,
@@ -157,7 +157,7 @@ public class PatientClinicalRecordsController : ControllerBase
         if (entry is null)
             return NotFound();
 
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeWriteAsync(actor, patientId, entry.AppointmentId, cancellationToken));
 
@@ -189,7 +189,7 @@ public class PatientClinicalRecordsController : ControllerBase
         if (entry is null)
             return NotFound();
 
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeWriteAsync(actor, patientId, entry.AppointmentId, cancellationToken));
 
@@ -227,7 +227,7 @@ public class PatientClinicalRecordsController : ControllerBase
         if (entry is null)
             return NotFound();
 
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeWriteAsync(actor, patientId, entry.AppointmentId, cancellationToken));
 
@@ -246,7 +246,7 @@ public class PatientClinicalRecordsController : ControllerBase
         await using Stream stream = file.OpenReadStream();
         await storageService.UploadAsync(s3Key, stream, file.ContentType);
 
-        var document = new ClinicalDocument
+        ClinicalDocument document = new ClinicalDocument
         {
             Id = Guid.NewGuid(),
             ClinicalRecordEntryId = entryId,
@@ -273,7 +273,7 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpGet("documents/{documentId:guid}")]
     public async Task<IActionResult> DownloadDocument(Guid patientId, Guid documentId, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeReadAsync(actor, patientId, cancellationToken));
 
@@ -314,7 +314,7 @@ public class PatientClinicalRecordsController : ControllerBase
         if (document is null)
             return NotFound();
 
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeWriteAsync(actor, patientId, document.ClinicalRecordEntry!.AppointmentId, cancellationToken));
 
@@ -339,14 +339,14 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpGet("access-grants")]
     public async Task<IActionResult> GetAccessGrants(Guid patientId, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeGrantManagementAsync(actor, patientId, cancellationToken));
 
         if (authorizationFailure is not null)
             return authorizationFailure;
 
-        var grants = await context.ClinicalRecordAccessGrants
+        List<ClinicalRecordAccessGrant> grants = await context.ClinicalRecordAccessGrants
             .AsNoTracking()
             .Where(g => g.PatientId == patientId)
             .OrderByDescending(g => g.CreatedAt)
@@ -361,7 +361,7 @@ public class PatientClinicalRecordsController : ControllerBase
         [FromBody] CreateClinicalRecordAccessGrantRequestDTO request,
         CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeGrantManagementAsync(actor, patientId, cancellationToken));
 
@@ -375,7 +375,7 @@ public class PatientClinicalRecordsController : ControllerBase
         PatientClinicalRecord record = await EnsureClinicalRecordAsync(patientId, cancellationToken);
 
         DateTime utcNow = DateTime.UtcNow;
-        var grant = new ClinicalRecordAccessGrant
+        ClinicalRecordAccessGrant grant = new ClinicalRecordAccessGrant
         {
             Id = Guid.NewGuid(),
             PatientId = patientId,
@@ -398,7 +398,7 @@ public class PatientClinicalRecordsController : ControllerBase
     [HttpPatch("access-grants/{grantId:guid}/revoke")]
     public async Task<IActionResult> RevokeAccessGrant(Guid patientId, Guid grantId, CancellationToken cancellationToken)
     {
-        var actor = GetActor();
+        ClinicalRecordActor actor = GetActor();
         IActionResult? authorizationFailure = await AuthorizeAsync(
             () => authorizationService.AuthorizeGrantManagementAsync(actor, patientId, cancellationToken));
 

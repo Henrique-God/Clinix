@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using UsersAPI.Models;
 using UsersAPI.Models.DTOs;
@@ -21,7 +21,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     public async Task LoginReturnsOkWhenCredentialsAreValid()
     {
         await factory.ResetDatabaseAsync();
-        var user = new User
+        User user = new User
         {
             Id = Guid.NewGuid(),
             Email = "patient@clinix.local",
@@ -36,8 +36,8 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
                 ? user
                 : null);
 
-        using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/auth/login", new LoginRequestDTO
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/login", new LoginRequestDTO
         {
             Email = "patient@clinix.local",
             Password = "Password123"
@@ -45,7 +45,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var body = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
+        LoginResponseDTO? body = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
         Assert.NotNull(body);
         Assert.Equal($"test-token-{user.Id}", body.Token);
         Assert.Equal(UserType.User, body.UserType);
@@ -57,8 +57,8 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         await factory.ResetDatabaseAsync();
         factory.FakeUserService.ValidateCredentialsAsyncHandler = (_, _) => Task.FromResult<IUser?>(null);
 
-        using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/auth/login", new LoginRequestDTO
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/login", new LoginRequestDTO
         {
             Email = "missing@clinix.local",
             Password = "Password123"
@@ -68,10 +68,44 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task LoginReturnsBadRequestWhenEmailIsInvalid()
+    {
+        await factory.ResetDatabaseAsync();
+        factory.FakeUserService.ValidateCredentialsAsyncHandler = (_, _) =>
+            throw new InvalidOperationException("Handler should not be called for invalid payload.");
+
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/login", new LoginRequestDTO
+        {
+            Email = "invalid-email",
+            Password = "Password123"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LoginReturnsBadRequestWhenPasswordIsTooShort()
+    {
+        await factory.ResetDatabaseAsync();
+        factory.FakeUserService.ValidateCredentialsAsyncHandler = (_, _) =>
+            throw new InvalidOperationException("Handler should not be called for invalid payload.");
+
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/login", new LoginRequestDTO
+        {
+            Email = "patient@clinix.local",
+            Password = "123"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task RegisterPatientReturnsCreatedWhenRegistrationSucceeds()
     {
         await factory.ResetDatabaseAsync();
-        var user = BuildUser(UserType.User, "new-patient@clinix.local");
+        User user = BuildUser(UserType.User, "new-patient@clinix.local");
         factory.FakeUserService.RegisterPatientAsyncHandler = request =>
             Task.FromResult(new UserRegistrationResult
             {
@@ -79,8 +113,8 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
                 Error = UserRegistrationError.None
             });
 
-        using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/auth/patients/register", new RegisterRequestDTO
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/patients/register", new RegisterRequestDTO
         {
             Email = user.Email,
             Password = "Password123",
@@ -91,10 +125,28 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task RegisterPatientReturnsBadRequestWhenPayloadIsInvalid()
+    {
+        await factory.ResetDatabaseAsync();
+        factory.FakeUserService.RegisterPatientAsyncHandler = _ =>
+            throw new InvalidOperationException("Handler should not be called for invalid payload.");
+
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/patients/register", new RegisterRequestDTO
+        {
+            Email = "invalid-email",
+            Password = "123",
+            Name = new string('n', 257)
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task RegisterDoctorReturnsCreatedWhenRegistrationSucceeds()
     {
         await factory.ResetDatabaseAsync();
-        var user = BuildUser(UserType.Doctor, "doctor@clinix.local");
+        User user = BuildUser(UserType.Doctor, "doctor@clinix.local");
         factory.FakeUserService.RegisterDoctorAsyncHandler = request =>
             Task.FromResult(new UserRegistrationResult
             {
@@ -102,8 +154,8 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
                 Error = UserRegistrationError.None
             });
 
-        using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/auth/doctors/register", new RegisterDoctorRequestDTO
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/doctors/register", new RegisterDoctorRequestDTO
         {
             Name = "Doctor One",
             ProfessionalRegister = "CRM12345",
@@ -117,6 +169,79 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task RegisterDoctorReturnsBadRequestWhenPayloadIsInvalid()
+    {
+        await factory.ResetDatabaseAsync();
+        factory.FakeUserService.RegisterDoctorAsyncHandler = _ =>
+            throw new InvalidOperationException("Handler should not be called for invalid payload.");
+
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/doctors/register", new RegisterDoctorRequestDTO
+        {
+            Name = new string('d', 257),
+            ProfessionalRegister = string.Empty,
+            Specialties = [],
+            Email = "invalid-email",
+            Phone = new string('1', 33),
+            Password = "123"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegisterDoctorReturnsBadRequestWhenProfessionalRegisterAlreadyExists()
+    {
+        await factory.ResetDatabaseAsync();
+        factory.FakeUserService.RegisterDoctorAsyncHandler = _ =>
+            Task.FromResult(new UserRegistrationResult
+            {
+                Error = UserRegistrationError.ProfessionalRegisterAlreadyRegistered
+            });
+
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/doctors/register", new RegisterDoctorRequestDTO
+        {
+            Name = "Doctor One",
+            ProfessionalRegister = "CRM0001",
+            Specialties = ["Cardiology"],
+            Email = "doctor@clinix.local",
+            Phone = "11999999999",
+            Password = "Password123"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        string message = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Professional register already registered", message);
+    }
+
+    [Fact]
+    public async Task RegisterDoctorReturnsBadRequestWhenDoctorSpecialtiesAreMissing()
+    {
+        await factory.ResetDatabaseAsync();
+        factory.FakeUserService.RegisterDoctorAsyncHandler = _ =>
+            Task.FromResult(new UserRegistrationResult
+            {
+                Error = UserRegistrationError.DoctorSpecialtiesRequired
+            });
+
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/doctors/register", new RegisterDoctorRequestDTO
+        {
+            Name = "Doctor One",
+            ProfessionalRegister = "CRM0002",
+            Specialties = ["   "],
+            Email = "doctor2@clinix.local",
+            Phone = "11999999999",
+            Password = "Password123"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        string message = await response.Content.ReadAsStringAsync();
+        Assert.Contains("At least one valid specialty is required", message);
+    }
+
+    [Fact]
     public async Task RegisterLegacyReturnsBadRequestWhenEmailAlreadyExists()
     {
         await factory.ResetDatabaseAsync();
@@ -126,8 +251,8 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
                 Error = UserRegistrationError.EmailAlreadyRegistered
             });
 
-        using var client = factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/auth/register", new RegisterRequestDTO
+        using HttpClient client = factory.CreateClient();
+        HttpResponseMessage response = await client.PostAsJsonAsync("/auth/register", new RegisterRequestDTO
         {
             Email = "existing@clinix.local",
             Password = "Password123",
@@ -135,7 +260,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var message = await response.Content.ReadAsStringAsync();
+        string message = await response.Content.ReadAsStringAsync();
         Assert.Contains("Email already registered", message);
     }
 
@@ -143,16 +268,16 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     public async Task MeReturnsAuthenticatedUserClaims()
     {
         await factory.ResetDatabaseAsync();
-        using var client = factory.CreateClient();
-        var userId = Guid.NewGuid();
+        using HttpClient client = factory.CreateClient();
+        Guid userId = Guid.NewGuid();
         client.DefaultRequestHeaders.Add("X-Test-UserId", userId.ToString());
         client.DefaultRequestHeaders.Add("X-Test-Email", "me@clinix.local");
 
-        var response = await client.GetAsync("/auth/me");
+        HttpResponseMessage response = await client.GetAsync("/auth/me");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var body = await response.Content.ReadFromJsonAsync<MeResponse>();
+        MeResponse? body = await response.Content.ReadFromJsonAsync<MeResponse>();
         Assert.NotNull(body);
         Assert.Equal(userId.ToString(), body.UserId);
         Assert.Equal("me@clinix.local", body.Email);
@@ -162,9 +287,9 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     public async Task MeReturnsUnauthorizedWithoutAuthentication()
     {
         await factory.ResetDatabaseAsync();
-        using var client = factory.CreateClient();
+        using HttpClient client = factory.CreateClient();
 
-        var response = await client.GetAsync("/auth/me");
+        HttpResponseMessage response = await client.GetAsync("/auth/me");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -186,3 +311,4 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
         public string Email { get; set; } = string.Empty;
     }
 }
+

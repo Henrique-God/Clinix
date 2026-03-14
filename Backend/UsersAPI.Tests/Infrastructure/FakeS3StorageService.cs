@@ -10,7 +10,7 @@ public class FakeS3StorageService : IS3StorageService
 
     public Task<string> UploadAsync(string fileName, Stream content, string contentType)
     {
-        using var memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new MemoryStream();
         content.CopyTo(memoryStream);
         objects[fileName] = new StoredObject
         {

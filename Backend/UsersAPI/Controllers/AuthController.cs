@@ -62,8 +62,8 @@ public class AuthController : ControllerBase
     [HttpGet("me")]
     public IActionResult Me()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? email = User.FindFirst(ClaimTypes.Email)?.Value;
 
         return Ok(new { userId, email });
     }
