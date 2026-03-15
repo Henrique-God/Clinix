@@ -286,10 +286,11 @@ public class AvailabilityService
         CancellationToken cancellationToken)
     {
         bool hasOverlap = await context.DoctorAvailabilities.AnyAsync(item =>
-                item.DoctorId == doctorId
-                && !item.DeletedAt.HasValue
-                && (!excludeAvailabilityId.HasValue || item.Id != excludeAvailabilityId.Value)
-                && SchedulingRules.Overlaps(startTime, endTime, item.StartTime, item.EndTime),
+            item.DoctorId == doctorId
+            && !item.DeletedAt.HasValue
+            && (!excludeAvailabilityId.HasValue || item.Id != excludeAvailabilityId.Value)
+            && startTime < item.EndTime
+            && endTime > item.StartTime,
             cancellationToken);
 
         if (hasOverlap)
