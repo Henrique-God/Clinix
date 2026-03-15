@@ -147,7 +147,8 @@ public class CalendarService
                 && !item.DeletedAt.HasValue
                 && item.BlocksScheduling
                 && (!excludedEventId.HasValue || item.Id != excludedEventId.Value)
-                && SchedulingRules.Overlaps(startTime, endTime, item.StartTime, item.EndTime),
+                && startTime < item.EndTime
+                && endTime > item.StartTime,
             cancellationToken);
 
         if (hasManualEventConflict)
@@ -155,9 +156,12 @@ public class CalendarService
 
         bool hasAppointmentConflict = await context.Appointments.AnyAsync(item =>
                 item.DoctorId == doctorId
-                && SchedulingRules.Overlaps(startTime, endTime, item.StartTime, item.EndTime)
+                && startTime < item.EndTime
+                && endTime > item.StartTime
                 && (item.Status == AppointmentStatus.Accepted
-                    || (item.Status == AppointmentStatus.PendingAcceptance && item.InvitationExpiresAt > utcNow && item.StartTime > utcNow)),
+                    || (item.Status == AppointmentStatus.PendingAcceptance 
+                        && item.InvitationExpiresAt > utcNow 
+                        && item.StartTime > utcNow)),
             cancellationToken);
 
         if (hasAppointmentConflict)

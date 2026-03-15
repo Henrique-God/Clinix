@@ -350,11 +350,14 @@ public class AppointmentService
         CancellationToken cancellationToken)
     {
         bool hasAppointmentConflict = await context.Appointments.AnyAsync(item =>
-                item.DoctorId == doctorId
-                && (!excludeAppointmentId.HasValue || item.Id != excludeAppointmentId.Value)
-                && SchedulingRules.Overlaps(startTime, endTime, item.StartTime, item.EndTime)
-                && (item.Status == AppointmentStatus.Accepted
-                    || (item.Status == AppointmentStatus.PendingAcceptance && item.InvitationExpiresAt > utcNow && item.StartTime > utcNow)),
+            item.DoctorId == doctorId
+            && (!excludeAppointmentId.HasValue || item.Id != excludeAppointmentId.Value)
+            && startTime < item.EndTime
+            && endTime > item.StartTime
+            && (item.Status == AppointmentStatus.Accepted
+                || (item.Status == AppointmentStatus.PendingAcceptance
+                    && item.InvitationExpiresAt > utcNow
+                    && item.StartTime > utcNow)),
             cancellationToken);
 
         if (hasAppointmentConflict)
@@ -365,7 +368,8 @@ public class AppointmentService
                 && item.AppointmentId == null
                 && !item.DeletedAt.HasValue
                 && item.BlocksScheduling
-                && SchedulingRules.Overlaps(startTime, endTime, item.StartTime, item.EndTime),
+                && startTime < item.EndTime
+                && endTime > item.StartTime,
             cancellationToken);
 
         if (hasManualEventConflict)

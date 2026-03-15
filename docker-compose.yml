@@ -16,6 +16,8 @@ services:
       InternalServices__ApiKey: ${USERS_INTERNAL_API_KEY}
       Aws__Region: ${AWS_REGION}
       Aws__S3BucketName: ${S3_BUCKET}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
     restart: unless-stopped
 
   appointments-api:
