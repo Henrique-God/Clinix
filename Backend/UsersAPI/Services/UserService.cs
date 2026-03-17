@@ -29,6 +29,7 @@ public class UserService : IUserService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Name = request.Name.Trim(),
             UserType = UserType.User,
+            IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -71,6 +72,7 @@ public class UserService : IUserService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Name = request.Name.Trim(),
             UserType = UserType.Doctor,
+            IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -111,6 +113,9 @@ public class UserService : IUserService
             .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user == null)
+            return null;
+
+        if (!user.IsActive)
             return null;
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
