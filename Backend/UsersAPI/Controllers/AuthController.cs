@@ -31,52 +31,61 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDTO request)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest("Email and password are required.");
-
         IUser? user = await userService.ValidateCredentialsAsync(request.Email, request.Password);
         if (user == null)
             return Unauthorized("Invalid credentials.");
 
-        string token = jwtService.GenerateToken(user);
-        int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
-
-        return Ok(new LoginResponseDTO
-        {
-            Token = token,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
-            UserType = user.UserType
-        });
+        return Ok(BuildLoginResponse(user));
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequestDTO request)
+    [HttpPost("patients/register")]
+    public async Task<IActionResult> RegisterPatient([FromBody] RegisterRequestDTO request)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest("Email, password and name are required.");
+        UserRegistrationResult result = await userService.RegisterPatientAsync(request);
+        if (!result.Success)
+            return BadRequest(MapRegistrationError(result.Error));
 
-        IUser? user = await userService.RegisterAsync(request);
-        if (user == null)
-            return BadRequest("Email already registered.");
+        return StatusCode(201, BuildLoginResponse(result.User!));
+    }
 
-        string token = jwtService.GenerateToken(user);
-        int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+    [HttpPost("doctors/register")]
+    public async Task<IActionResult> RegisterDoctor([FromBody] RegisterDoctorRequestDTO request)
+    {
+        UserRegistrationResult result = await userService.RegisterDoctorAsync(request);
+        if (!result.Success)
+            return BadRequest(MapRegistrationError(result.Error));
 
-        return StatusCode(201, new LoginResponseDTO
-        {
-            Token = token,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
-            UserType = user.UserType
-        });
+        return StatusCode(201, BuildLoginResponse(result.User!));
     }
 
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? email = User.FindFirst(ClaimTypes.Email)?.Value;
 
         return Ok(new { userId, email });
     }
+
+    private LoginResponseDTO BuildLoginResponse(IUser user)
+    {
+        string token = jwtService.GenerateToken(user);
+        int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+
+        return new LoginResponseDTO
+        {
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes),
+            UserType = user.UserType
+        };
+    }
+
+    private static string MapRegistrationError(UserRegistrationError error) => error switch
+    {
+        UserRegistrationError.EmailAlreadyRegistered => "Email already registered.",
+        UserRegistrationError.ProfessionalRegisterAlreadyRegistered => "Professional register already registered.",
+        UserRegistrationError.DoctorSpecialtiesRequired => "At least one valid specialty is required.",
+        _ => "Could not complete registration."
+    };
 }

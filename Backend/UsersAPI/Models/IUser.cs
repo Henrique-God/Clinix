@@ -7,5 +7,6 @@ public interface IUser
     string PasswordHash { get; }
     string Name { get; }
     UserType UserType { get; }
+    bool IsActive { get; }
     DateTime CreatedAt { get; }
 }

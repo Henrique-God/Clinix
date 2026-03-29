@@ -23,7 +23,55 @@ namespace UsersAPI.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("UsersAPI.Models.ClinicalRecord", b =>
+            modelBuilder.Entity("UsersAPI.Models.ClinicalDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClinicalRecordEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("S3Key")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<long>("SizeInBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClinicalRecordEntryId", "CreatedAt");
+
+                    b.ToTable("ClinicalDocuments", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.ClinicalRecordAccessGrant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -32,20 +80,158 @@ namespace UsersAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("EndAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GrantedByPatientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("StartAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("PatientId", "DoctorId", "Status");
+
+                    b.ToTable("ClinicalRecordAccessGrants", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.ClinicalRecordEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AppointmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AppointmentOccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("AuthorType")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClinicalRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<int>("EntryType")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsVisibleToPatient")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ProfessionalId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.ToTable("ClinicalRecords", "users");
+                    b.HasIndex("AppointmentId");
+
+                    b.HasIndex("ClinicalRecordId");
+
+                    b.HasIndex("PatientId", "CreatedAt");
+
+                    b.ToTable("ClinicalRecordEntries", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.DoctorProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedProfessionalRegister")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ProfessionalRegister")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Specialties")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("NormalizedProfessionalRegister")
+                        .IsUnique();
+
+                    b.ToTable("DoctorProfiles", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.PatientClinicalRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PatientId")
+                        .IsUnique();
+
+                    b.ToTable("PatientClinicalRecords", "users");
                 });
 
             modelBuilder.Entity("UsersAPI.Models.User", b =>
@@ -61,6 +247,9 @@ namespace UsersAPI.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -81,6 +270,71 @@ namespace UsersAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.ClinicalDocument", b =>
+                {
+                    b.HasOne("UsersAPI.Models.ClinicalRecordEntry", "ClinicalRecordEntry")
+                        .WithMany("Documents")
+                        .HasForeignKey("ClinicalRecordEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClinicalRecordEntry");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.ClinicalRecordAccessGrant", b =>
+                {
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.ClinicalRecordEntry", b =>
+                {
+                    b.HasOne("UsersAPI.Models.PatientClinicalRecord", "ClinicalRecord")
+                        .WithMany("Entries")
+                        .HasForeignKey("ClinicalRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClinicalRecord");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.DoctorProfile", b =>
+                {
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("UsersAPI.Models.DoctorProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.PatientClinicalRecord", b =>
+                {
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.ClinicalRecordEntry", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.PatientClinicalRecord", b =>
+                {
+                    b.Navigation("Entries");
                 });
 #pragma warning restore 612, 618
         }

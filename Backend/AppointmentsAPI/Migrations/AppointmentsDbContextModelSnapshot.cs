@@ -23,7 +23,184 @@ namespace AppointmentsAPI.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("AppointmentsAPI.Models.Appointment", b =>
+            modelBuilder.Entity("AppointmentsAPI.Domain.AgendaEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AppointmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("BlocksScheduling")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId")
+                        .IsUnique();
+
+                    b.HasIndex("DoctorId", "StartTime", "EndTime");
+
+                    b.ToTable("agenda_events", "appointments");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.Appointment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("InvitationExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorId", "StartTime");
+
+                    b.HasIndex("PatientId", "StartTime");
+
+                    b.HasIndex("DoctorId", "Status", "StartTime");
+
+                    b.ToTable("appointments", "appointments");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.AppointmentInvitationMetadata", b =>
+                {
+                    b.Property<Guid>("AppointmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvitationMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("InvitedByDoctorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PatientResponseNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("AppointmentId");
+
+                    b.ToTable("appointment_invitation_metadata", "appointments");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.AppointmentStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AppointmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ChangedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("FromStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId", "ChangedAt");
+
+                    b.ToTable("appointment_status_history", "appointments");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.DoctorAvailability", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -32,24 +209,71 @@ namespace AppointmentsAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("EndTime")
+                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("PatientId")
+                    b.Property<Guid>("DoctorId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ProfessionalId")
-                        .HasColumnType("uuid");
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Visibility")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Appointments", "appointments");
+                    b.HasIndex("DoctorId", "StartTime", "EndTime");
+
+                    b.ToTable("doctor_availability", "appointments");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.AgendaEvent", b =>
+                {
+                    b.HasOne("AppointmentsAPI.Domain.Appointment", "Appointment")
+                        .WithOne("AgendaEvent")
+                        .HasForeignKey("AppointmentsAPI.Domain.AgendaEvent", "AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Appointment");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.AppointmentInvitationMetadata", b =>
+                {
+                    b.HasOne("AppointmentsAPI.Domain.Appointment", "Appointment")
+                        .WithOne("InvitationMetadata")
+                        .HasForeignKey("AppointmentsAPI.Domain.AppointmentInvitationMetadata", "AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.AppointmentStatusHistory", b =>
+                {
+                    b.HasOne("AppointmentsAPI.Domain.Appointment", "Appointment")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
+                });
+
+            modelBuilder.Entity("AppointmentsAPI.Domain.Appointment", b =>
+                {
+                    b.Navigation("AgendaEvent");
+
+                    b.Navigation("InvitationMetadata")
+                        .IsRequired();
+
+                    b.Navigation("StatusHistory");
                 });
 #pragma warning restore 612, 618
         }
