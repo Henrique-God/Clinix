@@ -214,10 +214,5 @@ public class CalendarService
     }
 
     private static DateTime NormalizeUtc(DateTime value) =>
-        value.Kind switch
-        {
-            DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
-        };
+        TimePrecision.NormalizeSchedulingUtc(value);
 }
