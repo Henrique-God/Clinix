@@ -235,6 +235,57 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
     }
 
     [Fact]
+    public async Task InviteWithMillisecondPrecisionDoesNotBlockNextAlignedSlot()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        factory.TestClock.UtcNow = new DateTime(2026, 3, 15, 9, 0, 0, DateTimeKind.Utc);
+
+        await factory.SeedAsync(context =>
+        {
+            context.DoctorAvailabilities.Add(DoctorAvailability.Create(
+                doctorId,
+                new DateTime(2026, 3, 17, 10, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 3, 17, 11, 0, 0, DateTimeKind.Utc),
+                ScheduleVisibility.Public,
+                factory.TestClock.UtcNow));
+
+            return Task.CompletedTask;
+        });
+
+        using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
+        HttpResponseMessage inviteResponse = await doctorClient.PostAsJsonAsync("/appointments/invite", new CreateAppointmentInviteRequestDto
+        {
+            PatientId = patientId,
+            Title = "Consulta com milissegundos",
+            StartTime = new DateTime(2026, 3, 17, 10, 0, 0, 889, DateTimeKind.Utc),
+            EndTime = new DateTime(2026, 3, 17, 10, 30, 0, 889, DateTimeKind.Utc),
+            InvitationExpiresAt = new DateTime(2026, 3, 17, 9, 59, 30, 500, DateTimeKind.Utc)
+        });
+
+        Assert.Equal(HttpStatusCode.Created, inviteResponse.StatusCode);
+        AppointmentResponseDto? inviteBody = await inviteResponse.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
+        Assert.NotNull(inviteBody);
+        Assert.Equal(new DateTime(2026, 3, 17, 10, 0, 0, DateTimeKind.Utc), inviteBody.StartTime);
+        Assert.Equal(new DateTime(2026, 3, 17, 10, 30, 0, DateTimeKind.Utc), inviteBody.EndTime);
+
+        using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await patientClient.GetAsync(
+            $"/doctors/{doctorId}/available-slots?FromUtc=2026-03-17T10:00:00Z&ToUtc=2026-03-17T11:00:00Z&DurationMinutes=30");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        List<AvailableSlotResponseDto>? slots = await response.Content.ReadFromJsonAsync<List<AvailableSlotResponseDto>>(JsonOptions);
+        Assert.NotNull(slots);
+        Assert.Single(slots);
+        Assert.Equal(new DateTime(2026, 3, 17, 10, 30, 0, DateTimeKind.Utc), slots[0].StartTime);
+        Assert.Equal(new DateTime(2026, 3, 17, 11, 0, 0, DateTimeKind.Utc), slots[0].EndTime);
+    }
+
+    [Fact]
     public async Task InternalRelationshipCheckReturnsTrueForAcceptedAppointment()
     {
         await factory.ResetDatabaseAsync();
