@@ -9,8 +9,6 @@ def _discover_env_files() -> tuple[str, ...]:
     env_files: list[str] = []
     seen: set[str] = set()
 
-    # Search upward from this file so local runs can pick up the repository
-    # root `.env` even when uvicorn is started inside Backend/ChatbotPythonAPI.
     for directory in Path(__file__).resolve().parents:
         candidate = directory / ".env"
         if not candidate.is_file():
