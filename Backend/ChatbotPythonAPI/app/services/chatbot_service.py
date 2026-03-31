@@ -203,10 +203,27 @@ class ChatbotService:
                 (
                     "system",
                     (
-                        "Voce e o assistente Clinix.\n"
-                        "Responda em portugues, de forma objetiva e amigavel.\n"
-                        "Nao invente informacoes."
-                    ),
+                        "Você é o assistente virtual da Clinix, uma plataforma digital inovadora de gestão de saúde e atividades físicas! "
+                        "Sua missão é facilitar a vida dos pacientes, integrando informações clínicas e acompanhamentos de forma ágil, acolhedora e segura.\n\n"
+                        
+                        "SUAS CAPACIDADES:\n"
+                        "1. Consultas: Você pode agendar, verificar, editar e cancelar compromissos médicos.\n"
+                        "2. Histórico Clínico: Você pode buscar informações precisas em prontuários e exames anteriores do paciente.\n"
+                        "3. Leitura de Documentos: Você é especialista em extrair dados de laudos e receitas médicas.\n\n"
+
+                        "REGRAS DE INTERFACE (UX):\n"
+                        "Se o paciente quiser enviar um documento, laudo ou receita, oriente-o de forma amigável a clicar no ícone de clipe de papel (ou botão de anexo) localizado perto do campo de digitação.\n\n"
+                        
+                        "SEU TOM E COMPORTAMENTO:\n"
+                        "- Seja sempre entusiasta, caloroso e muito educado! Demonstre que você está genuinamente feliz em ajudar a cuidar da saúde do paciente.\n"
+                        "- Seja altamente proativo: nunca deixe a conversa em um 'beco sem saída'. Se o paciente cancelar uma consulta, ofereça opções para reagendar. Se ele perguntar sobre um exame, pergunte se ele precisa de ajuda para marcar um retorno com o médico.\n"
+                        "- Seja objetivo nas respostas, sem textos gigantes, para facilitar a leitura no celular ou computador.\n\n"
+                        
+                        "REGRAS DE SEGURANÇA E ÉTICA (CRÍTICO):\n"
+                        "- NUNCA invente ou presuma informações (sem alucinações). Baseie-se APENAS nos dados retornados pelas ferramentas, APIs e histórico do paciente.\n"
+                        "- Você NÃO é médico. Nunca forneça diagnósticos, não recomende novos medicamentos e não altere dosagens. Limite-se a ler o que está prescrito.\n"
+                        "- Proteja a privacidade: NUNCA exiba IDs internos do banco de dados (como UUIDs), senhas, tokens ou dados sensíveis de outros pacientes."
+                    )
                 ),
                 (
                     "human",
@@ -245,6 +262,7 @@ class ChatbotService:
         )
         history = self._memory_store.get_history(conversation_id, self._history_window)
         summary = self._memory_store.get_summary(conversation_id)
+
         return {
             "conversation_id": conversation_id,
             "patient_id": patient_id,
@@ -256,6 +274,7 @@ class ChatbotService:
         actor = state["actor"]
         history_text = self._format_history(state.get("history", []))
         message = state["message"]
+
         try:
             raw_plan = await self._planner_chain.ainvoke(
                 {
@@ -277,6 +296,7 @@ class ChatbotService:
             plan.parameters["operation"] = self._normalize_operation(plan.parameters.get("operation"))
         if plan.action not in VALID_ACTIONS:
             plan = self._fallback_plan(message)
+
         return {"plan": plan.model_dump()}
 
     async def _route_action_node(self, state: ChatGraphState) -> ChatGraphState:
@@ -284,16 +304,20 @@ class ChatbotService:
 
     def _route_action(self, state: ChatGraphState) -> str:
         action = str(state.get("plan", {}).get("action", "general_response"))
+
         if action not in VALID_ACTIONS:
             return "general_response"
+        
         return action
 
     async def _consultations_node(self, state: ChatGraphState) -> ChatGraphState:
         actor = state["actor"]
+
         if actor.role.lower() == "doctor":
             appointments = await self._appointments_client.get_doctor_appointments(actor.token)
         else:
             appointments = await self._appointments_client.get_patient_appointments(actor.token)
+
         return {"action_result": {"count": len(appointments), "appointments": appointments[:6]}}
 
     async def _scheduling_node(self, state: ChatGraphState) -> ChatGraphState:
@@ -304,15 +328,20 @@ class ChatbotService:
 
         if operation == "cancel":
             appointment_id = parameters.get("appointment_id")
+
             if not appointment_id:
-                return {"action_result": {"error": "Para cancelar, informe o appointment_id (GUID)."}}
+                return {"action_result": {"error": "Para cancelar, por favor informe o appointment_id."}}
+            
             cancelled = await self._appointments_client.cancel_appointment(actor.token, str(appointment_id))
+
             return {"action_result": {"operation": "cancel", "appointment": cancelled}}
 
         if operation in {"accept", "reject"}:
             appointment_id = parameters.get("appointment_id")
+
             if not appointment_id:
-                return {"action_result": {"error": "Para responder convite, informe o appointment_id (GUID)."}}
+                return {"action_result": {"error": "Para responder convite, por favor informe o appointment_id."}}
+            
             accepted = operation == "accept"
             response = await self._appointments_client.respond_invitation(
                 token=actor.token,
@@ -320,12 +349,15 @@ class ChatbotService:
                 accepted=accepted,
                 note=str(parameters.get("note", "")) or None,
             )
+
             return {"action_result": {"operation": operation, "appointment": response}}
 
         if operation == "schedule":
             if actor.role.lower() != "doctor":
                 return {"action_result": {"error": "Somente medicos podem criar convites de consulta."}}
+            
             payload = self._build_invite_payload(parameters)
+
             if not payload:
                 return {
                     "action_result": {
@@ -335,6 +367,7 @@ class ChatbotService:
                     }
                 }
             appointment = await self._appointments_client.invite_appointment(actor.token, payload)
+
             return {"action_result": {"operation": "schedule", "appointment": appointment}}
 
         if operation == "modify":
@@ -366,6 +399,7 @@ class ChatbotService:
             patient_id=patient_id,
             query=state["message"],
         )
+
         return {"action_result": {"rag": rag, "patient_id": patient_id}}
 
     async def _document_ingestion_node(self, state: ChatGraphState) -> ChatGraphState:
@@ -373,8 +407,10 @@ class ChatbotService:
             "action_result": {
                 "flow": "document_ingestion",
                 "message": (
-                    "Para ingestao documental, envie o arquivo em POST /documents/ingest "
-                    "com multipart/form-data: file + patient_id (+ appointment_id opcional)."
+                    "Para me enviar uma receita médica ou um laudo do seu exame, é muito simples!"
+                    "Basta clicar no ícone de clipe de papel, ao lado do campo de mensagem, e selecionar o arquivo que deseja me enviar."
+                    "Assim que você mandar, eu vou ler o documento automaticamente, guardar as informações importantes no seu histórico e você já poderá me fazer perguntas sobre ele!"
+                    "Se tiver alguma dúvida ou precisar de ajuda, é só me chamar."
                 ),
             }
         }
@@ -393,8 +429,10 @@ class ChatbotService:
         if action == "clinical_history":
             rag_data = action_result.get("rag", {})
             answer = str(rag_data.get("answer", "")).strip()
+
             if answer:
                 return {"reply": answer}
+            
             return {"reply": "Nao encontrei dados suficientes no historico clinico."}
 
         if action == "document_ingestion":
@@ -412,6 +450,7 @@ class ChatbotService:
                 config=state.get("invoke_config"),
             )
             return {"reply": reply}
+        
         except Exception:
             return {"reply": "Nao consegui responder agora. Tente novamente em instantes."}
 
@@ -421,6 +460,7 @@ class ChatbotService:
         self._memory_store.append_message(conversation_id, "assistant", state.get("reply", ""))
 
         history = self._memory_store.get_history(conversation_id, self._history_window)
+
         if len(history) >= self._history_window:
             history_text = self._format_history(history)
             try:
@@ -431,6 +471,7 @@ class ChatbotService:
                 self._memory_store.update_summary(conversation_id, summary)
             except Exception:
                 pass
+
         return state
 
     def _build_invoke_config(
@@ -568,8 +609,10 @@ class ChatbotService:
     @staticmethod
     def _build_invite_payload(parameters: dict[str, Any]) -> dict[str, Any] | None:
         required_fields = ["patient_id", "start_time", "end_time", "invitation_expires_at"]
+
         if not all(parameters.get(field) for field in required_fields):
             return None
+        
         return {
             "patientId": parameters["patient_id"],
             "startTime": parameters["start_time"],
@@ -585,11 +628,14 @@ class ChatbotService:
     def _format_history(history: list[dict[str, Any]]) -> str:
         if not history:
             return "- (sem historico)"
+        
         lines = []
+
         for item in history:
             sender = item.get("sender", "unknown")
             content = item.get("content", "")
             lines.append(f"{sender}: {content}")
+
         return "\n".join(lines)
 
     @staticmethod
@@ -610,4 +656,5 @@ class ChatbotService:
             return ChatIntent.GENERAL
         if action == "clinical_history":
             return ChatIntent.CLINICAL_EVOLUTION
+        
         return ChatIntent.GENERAL
