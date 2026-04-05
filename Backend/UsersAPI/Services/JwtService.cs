@@ -23,7 +23,7 @@ public class JwtService : IJwtService
         int expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
 
         SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-        SigningCredentials credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha512Signature);
+        SigningCredentials credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha512);
 
         Claim[] claims =
         [

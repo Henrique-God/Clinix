@@ -21,7 +21,7 @@ Clinix/
 ├── Backend/
 │   ├── UsersAPI/            → Autenticação JWT + Prontuários  (porta 5001)
 │   ├── AppointmentsAPI/     → Agendamentos                   (porta 5002)
-│   ├── ChatBotAPI/          → Assistente IA (OpenAI Sprint 3) (porta 5003)
+│   ├── ChatbotPythonAPI/    → Assistente IA (RAG + OCR + OpenAI) (porta 5003)
 │   └── Shared/              → Biblioteca compartilhada (JWT validation)
 ├── Frontend/                → React app                       (porta 3000)
 ├── docker-compose.yml
@@ -33,6 +33,7 @@ Clinix/
 - .NET 8 SDK
 - Docker + Docker Compose
 - Node.js 20+
+- Python 3.12+
 
 ---
 
@@ -53,7 +54,7 @@ docker compose down
 | ----------------- | ---------------------- | --------------------------------- |
 | UsersAPI          | http://localhost:5001  | http://localhost:5001/swagger      |
 | AppointmentsAPI   | http://localhost:5002  | http://localhost:5002/swagger      |
-| ChatBotAPI        | http://localhost:5003  | http://localhost:5003/swagger      |
+| ChatbotPythonAPI  | http://localhost:5003  | http://localhost:5003/docs         |
 | Frontend          | http://localhost:3000  | —                                 |
 
 ---
@@ -74,10 +75,11 @@ dotnet run
 # Disponível em http://localhost:5002
 ```
 
-### ChatBotAPI
+### ChatbotPythonAPI
 ```bash
-cd Backend/ChatBotAPI
-dotnet run
+cd Backend/ChatbotPythonAPI
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 5003
 # Disponível em http://localhost:5003
 ```
 
@@ -113,10 +115,13 @@ npm run dev
 | GET    | /appointments        | JWT  | Listar consultas |
 | POST   | /appointments        | JWT  | Agendar consulta |
 
-### ChatBotAPI (`/chatbot`)
+### ChatbotPythonAPI
 | Método | Rota             | Auth | Descrição                     |
 | ------ | ---------------- | ---- | ----------------------------- |
 | POST   | /chatbot/message | JWT  | Enviar mensagem ao assistente |
+| POST   | /documents/ingest | JWT | Ingerir PDF/imagem e indexar no RAG |
+| GET    | /documents/{id}/status | JWT | Consultar status da ingestão |
+| POST   | /rag/query | JWT | Consulta semântica do histórico |
 
 ---
 
@@ -152,7 +157,7 @@ dotnet ef database update
 # Build a partir da raiz do projeto (necessário para o contexto de build)
 docker build -f Backend/UsersAPI/Dockerfile -t clinix/users-api .
 docker build -f Backend/AppointmentsAPI/Dockerfile -t clinix/appointments-api .
-docker build -f Backend/ChatBotAPI/Dockerfile -t clinix/chatbot-api .
+docker build -f Backend/ChatbotPythonAPI/Dockerfile -t clinix/chatbot-api .
 
 # Remover container e imagem para rebuild limpo
 docker stop <nome> && docker rm <nome> && docker rmi <imagem>
@@ -199,7 +204,7 @@ Este projeto (Clinix) cobre gestao de agenda medica/paciente e evolucao para pro
 
 - Cadastro e autenticacao de pacientes e medicos (UC1 e UC2).
 - Base de prontuario clinico (UC7, UC8, UC9) com historico rastreavel.
-- Preparacao para integracao com AppointmentsAPI e ChatBotAPI (UC3-UC6).
+- Preparacao para integracao com AppointmentsAPI e ChatbotPythonAPI (UC3-UC6).
 - Estruturar fundacoes de autorizacao por papel e validacoes de dominio.
 
 Referencia tecnica detalhada para continuidade: `Backend/UsersAPI/TECH_CONTEXT.md`.
