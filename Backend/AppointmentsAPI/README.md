@@ -41,6 +41,7 @@ Allowed transitions:
 
 - `PendingAcceptance -> Accepted`
 - `PendingAcceptance -> Rejected`
+- `PendingAcceptance -> CancelledByPatient` (only when the patient created the invitation)
 - `PendingAcceptance -> CancelledByDoctor`
 - `Accepted -> CancelledByPatient`
 - `Accepted -> CancelledByDoctor`
@@ -48,10 +49,10 @@ Allowed transitions:
 
 Blocked transitions:
 
-- patient cannot create invitations
 - patient cannot cancel after appointment start time
 - completed appointments cannot be cancelled
 - accept/reject after expiry or after start time is rejected
+- invitation creator cannot accept or reject their own invitation
 - only doctor can complete
 
 ## Domain Model
@@ -83,8 +84,9 @@ Main fields:
 
 ### AppointmentInvitationMetadata
 
-- doctor invitation message
-- patient response note
+- invitation initiator identity and role
+- invitation message
+- responder note
 - auditable invitation timestamps
 
 ### AppointmentStatusHistory
@@ -184,8 +186,10 @@ Doctor:
 
 Patient:
 
-- accept own invitation
-- reject own invitation
+- create invitations for doctors inside public availability
+- accept invitations sent to them
+- reject invitations sent to them
+- cancel own pending invitation when they created it
 - cancel own accepted appointment before start
 - list own appointments
 - view public slots
@@ -267,6 +271,8 @@ Today the default publisher logs the event. In production, this should evolve to
 - double booking attempts rejected before persistence
 - expired invitations cannot be accepted or rejected
 - wrong patient cannot accept another patient's invitation
+- invitation creator cannot accept or reject their own invitation
+- patient invites require public doctor availability
 - inactive doctors cannot manage or receive appointments
 - completed appointments cannot be cancelled
 - patient cancellation after start time is rejected
@@ -278,9 +284,12 @@ Today the default publisher logs the event. In production, this should evolve to
 Integration coverage added in `Backend/AppointmentsAPI.Tests`:
 
 - doctor invitation flow
+- patient invitation flow
 - patient acceptance
+- doctor acceptance of patient invitation
 - acceptance after expiry
 - wrong-patient acceptance
+- self-acceptance blocked
 - cancellation after completion
 - available slot projection with blocking events
 - internal relationship check
@@ -298,5 +307,5 @@ dotnet test Backend/AppointmentsAPI.Tests/AppointmentsAPI.Tests.csproj --no-buil
 
 - datetimes are treated as UTC
 - public/private visibility is modeled per availability slot, which is a safe superset of a doctor-level toggle
-- patients can view public slots, but invitation creation remains doctor-initiated in this version to satisfy the anti-spam rule
+- patients can view public slots and create pending invitations only inside public doctor availability windows
 - outbox/event bus hardening is recommended for production-grade guaranteed delivery
