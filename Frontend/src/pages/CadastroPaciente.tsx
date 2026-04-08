@@ -3,12 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CadastroPaciente() {
   const navigate = useNavigate();
+  const { registerPatient } = useAuth();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nome: "",
     dataNascimento: "",
@@ -20,15 +25,43 @@ export default function CadastroPaciente() {
     convenio: "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setFormData({ ...formData, [event.target.name]: event.target.value });
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simula cadastro
-    navigate("/");
-  };
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+
+    if (formData.senha !== formData.confirmarSenha) {
+      toast({
+        title: "Senhas diferentes",
+        description: "Confira a confirmacao da senha antes de continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const session = await registerPatient({
+        name: formData.nome.trim(),
+        email: formData.email.trim(),
+        password: formData.senha,
+      });
+
+      navigate(resolveHomePath(session.userType), { replace: true });
+    } catch (error) {
+      toast({
+        title: "Nao foi possivel criar sua conta",
+        description:
+          error instanceof Error ? error.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero p-4 sm:p-8">
@@ -36,6 +69,7 @@ export default function CadastroPaciente() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          disabled={isSubmitting}
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar
@@ -63,6 +97,7 @@ export default function CadastroPaciente() {
                   value={formData.nome}
                   onChange={handleChange}
                   className="input-focus"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -76,6 +111,7 @@ export default function CadastroPaciente() {
                     value={formData.dataNascimento}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -87,6 +123,7 @@ export default function CadastroPaciente() {
                     value={formData.cpf}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -101,6 +138,7 @@ export default function CadastroPaciente() {
                     value={formData.telefone}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -113,6 +151,7 @@ export default function CadastroPaciente() {
                     value={formData.email}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -128,6 +167,7 @@ export default function CadastroPaciente() {
                     value={formData.senha}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -140,19 +180,21 @@ export default function CadastroPaciente() {
                     value={formData.confirmarSenha}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="convenio">Convênio</Label>
+                <Label htmlFor="convenio">Convenio</Label>
                 <Input
                   id="convenio"
                   name="convenio"
-                  placeholder="Ex: Unimed, Bradesco Saúde, SUS"
+                  placeholder="Ex: Unimed, Bradesco Saude, SUS"
                   value={formData.convenio}
                   onChange={handleChange}
                   className="input-focus"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -162,11 +204,12 @@ export default function CadastroPaciente() {
                   variant="outline"
                   onClick={() => navigate("/")}
                   className="flex-1"
+                  disabled={isSubmitting}
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" className="flex-1">
-                  Salvar cadastro
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? "Criando conta..." : "Salvar cadastro"}
                 </Button>
               </div>
             </form>

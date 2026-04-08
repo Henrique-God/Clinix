@@ -1,58 +1,69 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Check, Calendar, Clock, User, Stethoscope, AlertCircle } from "lucide-react";
+import { AlertCircle, Calendar, Check, Clock, MapPin, Stethoscope, User } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stepper } from "@/components/Stepper";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { appointmentsApi, usersApi } from "@/lib/api/clinix-api";
+import { formatDateTime, getAppointmentTimeRange } from "@/lib/date-utils";
 
 const steps = [
   { id: "especialidade", label: "Especialidade" },
-  { id: "medico", label: "Médico" },
+  { id: "medico", label: "Medico" },
   { id: "data-hora", label: "Data e Hora" },
-  { id: "confirmacao", label: "Confirmação" },
+  { id: "confirmacao", label: "Confirmacao" },
 ];
-
-const especialidadesNome: Record<string, string> = {
-  cardiologia: "Cardiologia",
-  dermatologia: "Dermatologia",
-  ortopedia: "Ortopedia",
-  pediatria: "Pediatria",
-  ginecologia: "Ginecologia",
-  neurologia: "Neurologia",
-  oftalmologia: "Oftalmologia",
-  "clinica-geral": "Clínica Geral",
-};
-
-const medicosNome: Record<string, string> = {
-  "dr-joao": "Dr. João Silva",
-  "dra-maria": "Dra. Maria Santos",
-  "dr-pedro": "Dr. Pedro Costa",
-  "dra-ana": "Dra. Ana Lima",
-};
 
 export default function ConfirmacaoAgendamento() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { session, profile } = useAuth();
+  const { toast } = useToast();
 
   const especialidade = searchParams.get("especialidade") || "";
   const medico = searchParams.get("medico") || "";
-  const data = searchParams.get("data") || "";
-  const horario = searchParams.get("horario") || "";
+  const inicio = searchParams.get("inicio") || "";
+  const fim = searchParams.get("fim") || "";
 
-  const dataFormatada = data
-    ? format(parseISO(data), "EEEE, d 'de' MMMM", { locale: ptBR })
-    : "";
+  const doctorQuery = useQuery({
+    queryKey: ["directory", "user", medico],
+    queryFn: () => usersApi.getDirectoryUser(session!.token, medico),
+    enabled: Boolean(session?.token && medico),
+  });
 
-  const handleConfirmar = () => {
-    toast({
-      title: "Consulta agendada com sucesso!",
-      description: "Você receberá um lembrete por e-mail.",
-    });
-    navigate("/paciente/consultas");
-  };
+  const inviteMutation = useMutation({
+    mutationFn: () =>
+      appointmentsApi.inviteAppointment(session!.token, {
+        doctorId: medico,
+        patientId: profile!.userId,
+        startTime: inicio,
+        endTime: fim,
+        invitationExpiresAt: inicio,
+        title: `Consulta - ${especialidade}`,
+        description: `Convite de consulta enviado pela area do paciente para ${especialidade}.`,
+        location: "Clinix",
+        invitationMessage: "Solicitacao realizada pela plataforma Clinix.",
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["appointments", "patient"] });
+      toast({
+        title: "Solicitacao enviada com sucesso",
+        description: "O medico podera aceitar ou recusar o convite antes do horario marcado.",
+      });
+      navigate("/paciente/consultas", { replace: true });
+    },
+    onError: (error) => {
+      toast({
+        title: "Nao foi possivel enviar o convite",
+        description:
+          error instanceof Error ? error.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <div className="min-h-screen bg-gradient-hero p-4 sm:p-8">
@@ -68,67 +79,73 @@ export default function ConfirmacaoAgendamento() {
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-2">Confirmação</h1>
+          <h1 className="text-2xl font-bold text-center mb-2">Confirmacao</h1>
           <p className="text-muted-foreground text-center mb-8">
-            Revise os detalhes da sua consulta
+            Revise os detalhes antes de enviar a solicitacao ao medico.
           </p>
 
-          <div className="bg-secondary/30 rounded-xl p-6 mb-6 max-w-md mx-auto">
-            <h2 className="font-semibold mb-4 text-lg">Resumo da Consulta</h2>
+          <div className="bg-secondary/30 rounded-xl p-6 mb-6 max-w-xl mx-auto">
+            <h2 className="font-semibold mb-4 text-lg">Resumo da consulta</h2>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <Stethoscope className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Especialidade:</p>
-                  <p className="font-medium">
-                    {especialidadesNome[especialidade] || especialidade}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Especialidade</p>
+                  <p className="font-medium">{especialidade}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <User className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Médico:</p>
+                  <p className="text-sm text-muted-foreground">Medico</p>
                   <p className="font-medium">
-                    {medicosNome[medico] || medico}
+                    {doctorQuery.data?.name ?? (doctorQuery.isLoading ? "Carregando..." : medico)}
                   </p>
+                  {doctorQuery.data?.professionalRegister ? (
+                    <p className="text-sm text-muted-foreground">
+                      {doctorQuery.data.professionalRegister}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Data:</p>
-                  <p className="font-medium capitalize">{dataFormatada}</p>
+                  <p className="text-sm text-muted-foreground">Data e hora</p>
+                  <p className="font-medium capitalize">{formatDateTime(inicio)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {getAppointmentTimeRange(inicio, fim)}
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-primary" />
+                <MapPin className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Horário:</p>
-                  <p className="font-medium">{horario}</p>
+                  <p className="text-sm text-muted-foreground">Local</p>
+                  <p className="font-medium">Clinix</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 mb-8 max-w-md mx-auto flex items-start gap-3">
+          <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 mb-8 max-w-xl mx-auto flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-muted-foreground">
-              Lembre-se de chegar com 15 minutos de antecedência ou acessar o
-              link da teleconsulta no horário marcado
-            </p>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>Esta solicitacao cria um convite de consulta com status inicial pendente.</p>
+              <p>O convite permanece valido ate o horario de inicio da consulta.</p>
+            </div>
           </div>
 
           <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" onClick={() => navigate(-1)} disabled={inviteMutation.isPending}>
               Voltar
             </Button>
-            <Button onClick={handleConfirmar}>
-              Confirmar Agendamento
+            <Button onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending}>
+              {inviteMutation.isPending ? "Enviando..." : "Confirmar solicitacao"}
             </Button>
           </div>
         </Card>
