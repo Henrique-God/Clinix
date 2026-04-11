@@ -116,7 +116,7 @@ export default function CadastroMedico() {
             </div>
             <CardTitle className="text-2xl">Cadastro de Medico</CardTitle>
             <CardDescription>
-              Preencha seus dados profissionais para criar sua conta
+              Preencha os dados profissionais suportados pelo cadastro Clinix
             </CardDescription>
           </CardHeader>
 

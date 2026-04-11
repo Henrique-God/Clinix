@@ -82,7 +82,7 @@ export function DoctorLayout({ children }: DoctorLayoutProps) {
           </div>
 
           <nav className="flex border-t border-border overflow-x-auto">
-            {menuItems.slice(0, 4).map((item) => {
+            {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
 

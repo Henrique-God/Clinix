@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Calendar, FileText, LogOut, MessageSquare } from "lucide-react";
+import { Calendar, FileText, FolderOpen, LogOut, MessageSquare } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ interface PatientLayoutProps {
 const menuItems = [
   { id: "consultas", label: "Agendamentos", icon: Calendar, path: "/paciente/consultas" },
   { id: "prontuario", label: "Prontuario", icon: FileText, path: "/paciente/prontuario" },
+  { id: "documentos", label: "Documentos", icon: FolderOpen, path: "/paciente/documentos" },
   { id: "assistente", label: "Assistente", icon: MessageSquare, path: "/paciente/assistente" },
 ];
 

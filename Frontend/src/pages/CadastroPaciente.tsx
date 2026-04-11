@@ -16,13 +16,9 @@ export default function CadastroPaciente() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nome: "",
-    dataNascimento: "",
-    cpf: "",
-    telefone: "",
     email: "",
     senha: "",
     confirmarSenha: "",
-    convenio: "",
   });
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -82,7 +78,7 @@ export default function CadastroPaciente() {
             </div>
             <CardTitle className="text-2xl">Cadastro de Paciente</CardTitle>
             <CardDescription>
-              Preencha seus dados para criar sua conta
+              Crie sua conta com os campos atualmente suportados pelo backend
             </CardDescription>
           </CardHeader>
 
@@ -101,59 +97,18 @@ export default function CadastroPaciente() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dataNascimento">Data de nascimento</Label>
-                  <Input
-                    id="dataNascimento"
-                    name="dataNascimento"
-                    type="date"
-                    value={formData.dataNascimento}
-                    onChange={handleChange}
-                    className="input-focus"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    name="cpf"
-                    placeholder="000.000.000-00"
-                    value={formData.cpf}
-                    onChange={handleChange}
-                    className="input-focus"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone</Label>
-                  <Input
-                    id="telefone"
-                    name="telefone"
-                    placeholder="(11) 99999-9999"
-                    value={formData.telefone}
-                    onChange={handleChange}
-                    className="input-focus"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="input-focus"
-                    disabled={isSubmitting}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="input-focus"
+                  disabled={isSubmitting}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -185,17 +140,10 @@ export default function CadastroPaciente() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="convenio">Convenio</Label>
-                <Input
-                  id="convenio"
-                  name="convenio"
-                  placeholder="Ex: Unimed, Bradesco Saude, SUS"
-                  value={formData.convenio}
-                  onChange={handleChange}
-                  className="input-focus"
-                  disabled={isSubmitting}
-                />
+              <div className="rounded-lg bg-secondary/50 p-4 text-sm text-muted-foreground">
+                Dados como CPF, telefone, convenio e data de nascimento ainda nao fazem parte
+                do contrato atual de cadastro desta API. Vamos trabalhar somente com os campos
+                persistidos hoje para manter o frontend alinhado ao backend.
               </div>
 
               <div className="flex gap-3 pt-4">

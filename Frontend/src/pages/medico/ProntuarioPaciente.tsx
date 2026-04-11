@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Download, FileText, Plus, Stethoscope } from "lucide-react";
+import { ArrowLeft, Download, FileText, Plus, Stethoscope, Upload } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DoctorLayout } from "@/components/layouts/DoctorLayout";
 import { Button } from "@/components/ui/button";
@@ -36,11 +36,19 @@ export default function ProntuarioPaciente() {
   const { session, profile } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [entryForm, setEntryForm] = useState({
     title: "",
     description: "",
     appointmentId: "none",
     isVisibleToPatient: "false",
+  });
+  const [documentForm, setDocumentForm] = useState({
+    title: "",
+    description: "",
+    appointmentId: "",
+    isVisibleToPatient: "true",
+    file: null as File | null,
   });
 
   const patientQuery = useQuery({
@@ -96,6 +104,57 @@ export default function ProntuarioPaciente() {
         title: "Nao foi possivel criar o registro",
         description:
           error instanceof Error ? error.message : "Verifique permissao e consulta vinculada.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createDocumentMutation = useMutation({
+    mutationFn: async () => {
+      if (!documentForm.file) {
+        throw new Error("Selecione um arquivo antes de salvar.");
+      }
+
+      if (!documentForm.appointmentId) {
+        throw new Error("Selecione a consulta concluida vinculada ao documento.");
+      }
+
+      const entry = await clinicalRecordsApi.createEntry(session!.token, patientId, {
+        entryType: "Document",
+        title: documentForm.title.trim(),
+        description: documentForm.description.trim(),
+        appointmentId: documentForm.appointmentId,
+        isVisibleToPatient: documentForm.isVisibleToPatient === "true",
+      });
+
+      await clinicalRecordsApi.uploadDocument(
+        session!.token,
+        patientId,
+        entry.id,
+        documentForm.file,
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["clinical-record", "entries", patientId] });
+      await queryClient.invalidateQueries({ queryKey: ["clinical-record", "summary", patientId] });
+      setDocumentDialogOpen(false);
+      setDocumentForm({
+        title: "",
+        description: "",
+        appointmentId: "",
+        isVisibleToPatient: "true",
+        file: null,
+      });
+      toast({
+        title: "Documento salvo",
+        description: "O anexo foi incluido no prontuario com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Nao foi possivel salvar o documento",
+        description:
+          error instanceof Error ? error.message : "Verifique a permissao clinica e tente novamente.",
         variant: "destructive",
       });
     },
@@ -315,6 +374,123 @@ export default function ProntuarioPaciente() {
           </TabsContent>
 
           <TabsContent value="documentos">
+            <div className="mb-4 flex justify-end">
+              <Dialog open={documentDialogOpen} onOpenChange={setDocumentDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Novo documento
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Novo documento clinico</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Titulo</Label>
+                      <Input
+                        value={documentForm.title}
+                        onChange={(event) =>
+                          setDocumentForm((current) => ({
+                            ...current,
+                            title: event.target.value,
+                          }))
+                        }
+                        placeholder="Ex: Pedido de exame complementar"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descricao</Label>
+                      <Textarea
+                        value={documentForm.description}
+                        onChange={(event) =>
+                          setDocumentForm((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                        placeholder="Contexto clinico do documento anexado."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Consulta concluida vinculada</Label>
+                      <Select
+                        value={documentForm.appointmentId}
+                        onValueChange={(value) =>
+                          setDocumentForm((current) => ({
+                            ...current,
+                            appointmentId: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma consulta concluida" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {completedAppointments.map((appointment) => (
+                            <SelectItem key={appointment.id} value={appointment.id}>
+                              {formatDateTime(appointment.startTime)} - {appointment.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {completedAppointments.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          O backend exige uma consulta concluida para anexos enviados por medico.
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Visibilidade para o paciente</Label>
+                      <Select
+                        value={documentForm.isVisibleToPatient}
+                        onValueChange={(value) =>
+                          setDocumentForm((current) => ({
+                            ...current,
+                            isVisibleToPatient: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Visivel ao paciente</SelectItem>
+                          <SelectItem value="false">Uso interno do profissional</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Arquivo</Label>
+                      <Input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+                        onChange={(event) =>
+                          setDocumentForm((current) => ({
+                            ...current,
+                            file: event.target.files?.[0] ?? null,
+                          }))
+                        }
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => createDocumentMutation.mutate()}
+                      disabled={
+                        createDocumentMutation.isPending ||
+                        !documentForm.title.trim() ||
+                        !documentForm.description.trim() ||
+                        !documentForm.appointmentId ||
+                        !documentForm.file
+                      }
+                    >
+                      {createDocumentMutation.isPending ? "Salvando..." : "Salvar documento"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             {documents.length > 0 ? (
               <div className="space-y-4">
                 {documents.map((document) => (

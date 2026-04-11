@@ -21,6 +21,8 @@ import {
   ClinicalRecordEntryCreateRequest,
   ClinicalRecordEntryUpdateRequest,
   ClinicalRecordSummary,
+  DocumentIngestResponse,
+  IngestionStatusResponse,
   ScheduleVisibility,
 } from "./domain";
 import { requestBlob, requestJson } from "./http";
@@ -390,6 +392,40 @@ export const chatbotApi = {
       body: payload,
     });
   },
+
+  ingestDocument(
+    token: string,
+    payload: {
+      file: File;
+      patientId: string;
+      appointmentId?: string;
+    },
+  ) {
+    const body = new FormData();
+    body.set("file", payload.file);
+    body.set("patient_id", payload.patientId);
+
+    if (payload.appointmentId) {
+      body.set("appointment_id", payload.appointmentId);
+    }
+
+    return requestJson<DocumentIngestResponse>(apiConfig.chatbotApiUrl, "/documents/ingest", {
+      method: "POST",
+      token,
+      body,
+    });
+  },
+
+  getIngestionStatus(token: string, ingestionId: string) {
+    return requestJson<IngestionStatusResponse>(
+      apiConfig.chatbotApiUrl,
+      `/documents/${ingestionId}/status`,
+      {
+        method: "GET",
+        token,
+      },
+    );
+  },
 };
 
 export const clinicalRecordsApi = {
@@ -455,12 +491,38 @@ export const clinicalRecordsApi = {
     );
   },
 
+  uploadDocument(token: string, patientId: string, entryId: string, file: File) {
+    const body = new FormData();
+    body.set("file", file);
+
+    return requestJson<void>(
+      apiConfig.usersApiUrl,
+      `/patients/${patientId}/clinical-record/entries/${entryId}/documents`,
+      {
+        method: "POST",
+        token,
+        body,
+      },
+    );
+  },
+
   downloadDocument(token: string, patientId: string, documentId: string) {
     return requestBlob(
       apiConfig.usersApiUrl,
       `/patients/${patientId}/clinical-record/documents/${documentId}`,
       {
         method: "GET",
+        token,
+      },
+    );
+  },
+
+  deleteDocument(token: string, patientId: string, documentId: string) {
+    return requestJson<void>(
+      apiConfig.usersApiUrl,
+      `/patients/${patientId}/clinical-record/documents/${documentId}`,
+      {
+        method: "DELETE",
         token,
       },
     );

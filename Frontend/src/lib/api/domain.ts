@@ -150,6 +150,19 @@ export interface ChatMessageResponse {
   metadata: Record<string, unknown>;
 }
 
+export interface DocumentIngestResponse {
+  ingestion_id: string;
+  status: string;
+  message: string;
+}
+
+export interface IngestionStatusResponse {
+  ingestion_id: string;
+  status: string;
+  detail?: string | null;
+  result?: Record<string, unknown> | null;
+}
+
 export interface ClinicalRecordEntryCreateRequest {
   entryType: ClinicalRecordEntryType;
   title: string;

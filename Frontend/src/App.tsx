@@ -18,7 +18,9 @@ import GestaoHorarios from "./pages/medico/GestaoHorarios";
 import ListaPacientes from "./pages/medico/ListaPacientes";
 import PainelMedico from "./pages/medico/PainelMedico";
 import ProntuarioPaciente from "./pages/medico/ProntuarioPaciente";
+import ProntuariosMedico from "./pages/medico/ProntuariosMedico";
 import AssistenteVirtual from "./pages/paciente/AssistenteVirtual";
+import DocumentosClinicos from "./pages/paciente/DocumentosClinicos";
 import MinhasConsultas from "./pages/paciente/MinhasConsultas";
 import Prontuario from "./pages/paciente/Prontuario";
 
@@ -45,6 +47,7 @@ const App = () => (
               <Route path="/agendar/confirmacao" element={<ConfirmacaoAgendamento />} />
               <Route path="/paciente/consultas" element={<MinhasConsultas />} />
               <Route path="/paciente/prontuario" element={<Prontuario />} />
+              <Route path="/paciente/documentos" element={<DocumentosClinicos />} />
               <Route path="/paciente/assistente" element={<AssistenteVirtual />} />
             </Route>
 
@@ -52,7 +55,7 @@ const App = () => (
               <Route path="/medico/painel" element={<PainelMedico />} />
               <Route path="/medico/horarios" element={<GestaoHorarios />} />
               <Route path="/medico/pacientes" element={<ListaPacientes />} />
-              <Route path="/medico/prontuarios" element={<ListaPacientes />} />
+              <Route path="/medico/prontuarios" element={<ProntuariosMedico />} />
               <Route path="/medico/prontuario/:id" element={<ProntuarioPaciente />} />
               <Route path="/medico/assistente" element={<AssistenteVirtual />} />
             </Route>

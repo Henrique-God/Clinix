@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Download,
   FileText,
@@ -39,6 +40,7 @@ import { buildSpecialties, loadDirectoryUsers } from "@/lib/directory";
 import { downloadBlob } from "@/lib/files";
 
 export default function Prontuario() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { session, profile } = useAuth();
   const { toast } = useToast();
@@ -282,6 +284,12 @@ export default function Prontuario() {
           </TabsContent>
 
           <TabsContent value="documentos">
+            <div className="mb-4 flex justify-end">
+              <Button variant="outline" onClick={() => navigate("/paciente/documentos")}>
+                <Plus className="mr-2 h-4 w-4" />
+                Enviar novo documento
+              </Button>
+            </div>
             {documents.length > 0 ? (
               <div className="space-y-4">
                 {documents.map((document) => (

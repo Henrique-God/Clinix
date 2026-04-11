@@ -330,7 +330,7 @@ export default function MinhasConsultas() {
                   <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="font-medium mb-2">Nenhuma consulta ativa</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Agende sua proxima consulta pela plataforma.
+                    Agende sua proxima consulta pela Clinix.
                   </p>
                   <Button onClick={() => navigate("/agendar/especialidade")}>
                     Agendar consulta
