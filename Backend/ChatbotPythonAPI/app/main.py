@@ -1,6 +1,8 @@
+import os
 from datetime import datetime, timezone
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import CurrentActor, get_current_actor
 from .dependencies import (
@@ -23,6 +25,29 @@ from .services.ingestion_store import IngestionStore
 from .services.rag_service import RagService
 
 app = FastAPI(title="Clinix Chatbot Python API", version="1.0.0")
+
+configured_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=configured_origins or default_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/chatbot/message", response_model=ChatMessageResponse)
 async def send_chat_message(

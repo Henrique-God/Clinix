@@ -34,28 +34,29 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
         using HttpClient client = CreateAuthenticatedClient(doctorId, "Doctor");
-        HttpResponseMessage response = await client.PostAsJsonAsync("/appointments/invite", new CreateAppointmentInviteRequestDto
-        {
-            PatientId = patientId,
-            Title = "Consulta cardiologica",
-            Description = "Primeira avaliacao",
-            Location = "Sala 2",
-            InvitationMessage = "Horario reservado para avaliacao inicial.",
-            StartTime = factory.TestClock.UtcNow.AddDays(1).AddHours(2),
-            EndTime = factory.TestClock.UtcNow.AddDays(1).AddHours(3),
-            InvitationExpiresAt = factory.TestClock.UtcNow.AddDays(1).AddHours(1)
-        });
+        HttpResponseMessage response = await client.PostAsJsonAsync("/appointments/invite", CreateInviteRequestDto(
+            doctorId,
+            patientId,
+            factory.TestClock.UtcNow.AddDays(1).AddHours(2),
+            factory.TestClock.UtcNow.AddDays(1).AddHours(3),
+            factory.TestClock.UtcNow.AddDays(1).AddHours(1),
+            "Consulta cardiologica",
+            "Primeira avaliacao",
+            "Sala 2",
+            "Horario reservado para avaliacao inicial."));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(AppointmentStatus.PendingAcceptance, body.Status);
         Assert.False(body.IsInvitationExpired);
+        Assert.Equal(doctorId, body.InvitedByUserId);
+        Assert.Equal(AppointmentParticipantRole.Doctor, body.InvitedByRole);
         Assert.Contains("AppointmentInvited", factory.FakeIntegrationEventPublisher.Events);
     }
 
     [Fact]
-    public async Task AcceptReturnsOkAndGrantsClinicalAccess()
+    public async Task InviteReturnsCreatedForPatientWhenPublicAvailabilityExists()
     {
         await factory.ResetDatabaseAsync();
         Guid doctorId = Guid.NewGuid();
@@ -63,7 +64,102 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
-        Guid appointmentId = await InviteAppointmentAsync(doctorId, patientId);
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+
+        using HttpClient client = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/appointments/invite",
+            CreateInviteRequestDto(
+                doctorId,
+                patientId,
+                startTime,
+                endTime,
+                new DateTime(2026, 3, 15, 22, 0, 0, DateTimeKind.Utc),
+                "Consulta de rotina"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal(patientId, body.InvitedByUserId);
+        Assert.Equal(AppointmentParticipantRole.Patient, body.InvitedByRole);
+    }
+
+    [Fact]
+    public async Task InviteReturnsConflictForPatientWhenPublicAvailabilityDoesNotExist()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        await factory.SeedAsync(context =>
+        {
+            context.DoctorAvailabilities.Add(DoctorAvailability.Create(
+                doctorId,
+                new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc),
+                ScheduleVisibility.Private,
+                factory.TestClock.UtcNow));
+
+            return Task.CompletedTask;
+        });
+
+        using HttpClient client = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/appointments/invite",
+            CreateInviteRequestDto(
+                doctorId,
+                patientId,
+                new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc),
+                new DateTime(2026, 3, 15, 22, 0, 0, DateTimeKind.Utc),
+                "Consulta fora da grade"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task InviteReturnsForbiddenWhenPatientTriesToInviteForAnotherPatient()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        Guid anotherPatientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+        factory.FakeUserDirectoryService.Upsert(anotherPatientId, "User");
+
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+
+        using HttpClient client = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/appointments/invite",
+            CreateInviteRequestDto(
+                doctorId,
+                anotherPatientId,
+                startTime,
+                endTime,
+                new DateTime(2026, 3, 15, 22, 0, 0, DateTimeKind.Utc),
+                "Tentativa invalida"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AcceptReturnsOkAndGrantsClinicalAccessForDoctorInvitation()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        Guid appointmentId = await InviteAppointmentAsDoctorAsync(doctorId, patientId);
 
         using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
         HttpResponseMessage response = await patientClient.PostAsJsonAsync(
@@ -74,9 +170,85 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
         Assert.NotNull(body);
         Assert.Equal(AppointmentStatus.Accepted, body.Status);
+        Assert.Equal("Aceito o horario.", body.ResponseNote);
         Assert.Single(factory.FakeClinicalRecordsGateway.AccessGrants);
         Assert.Contains("AppointmentAccepted", factory.FakeIntegrationEventPublisher.Events);
         Assert.Contains("ClinicalRecordAccessGranted", factory.FakeIntegrationEventPublisher.Events);
+    }
+
+    [Fact]
+    public async Task AcceptReturnsOkWhenDoctorAcceptsPatientInvitation()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+        Guid appointmentId = await InviteAppointmentAsPatientAsync(doctorId, patientId, startTime, endTime);
+
+        using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
+        HttpResponseMessage response = await doctorClient.PostAsJsonAsync(
+            $"/appointments/{appointmentId}/accept",
+            new RespondToInvitationRequestDto { Note = "Confirmado." });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal(AppointmentStatus.Accepted, body.Status);
+        Assert.Equal("Confirmado.", body.ResponseNote);
+        Assert.Single(factory.FakeClinicalRecordsGateway.AccessGrants);
+    }
+
+    [Fact]
+    public async Task AcceptReturnsForbiddenWhenInvitationCreatorTriesToAcceptOwnInvitation()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+        Guid appointmentId = await InviteAppointmentAsPatientAsync(doctorId, patientId, startTime, endTime);
+
+        using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await patientClient.PostAsJsonAsync(
+            $"/appointments/{appointmentId}/accept",
+            new RespondToInvitationRequestDto());
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RejectReturnsOkWhenDoctorRejectsPatientInvitation()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+        Guid appointmentId = await InviteAppointmentAsPatientAsync(doctorId, patientId, startTime, endTime);
+
+        using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
+        HttpResponseMessage response = await doctorClient.PostAsJsonAsync(
+            $"/appointments/{appointmentId}/reject",
+            new RespondToInvitationRequestDto { Note = "Nao consigo neste horario." });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal(AppointmentStatus.Rejected, body.Status);
+        Assert.Equal("Nao consigo neste horario.", body.ResponseNote);
     }
 
     [Fact]
@@ -89,14 +261,15 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
         using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
-        HttpResponseMessage inviteResponse = await doctorClient.PostAsJsonAsync("/appointments/invite", new CreateAppointmentInviteRequestDto
-        {
-            PatientId = patientId,
-            Title = "Consulta de retorno",
-            StartTime = factory.TestClock.UtcNow.AddHours(3),
-            EndTime = factory.TestClock.UtcNow.AddHours(4),
-            InvitationExpiresAt = factory.TestClock.UtcNow.AddHours(1)
-        });
+        HttpResponseMessage inviteResponse = await doctorClient.PostAsJsonAsync(
+            "/appointments/invite",
+            CreateInviteRequestDto(
+                doctorId,
+                patientId,
+                factory.TestClock.UtcNow.AddHours(3),
+                factory.TestClock.UtcNow.AddHours(4),
+                factory.TestClock.UtcNow.AddHours(1),
+                "Consulta de retorno"));
 
         AppointmentResponseDto? inviteBody = await inviteResponse.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
         Assert.NotNull(inviteBody);
@@ -122,7 +295,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
         factory.FakeUserDirectoryService.Upsert(anotherPatientId, "User");
 
-        Guid appointmentId = await InviteAppointmentAsync(doctorId, patientId);
+        Guid appointmentId = await InviteAppointmentAsDoctorAsync(doctorId, patientId);
 
         using HttpClient anotherPatientClient = CreateAuthenticatedClient(anotherPatientId, "User");
         HttpResponseMessage response = await anotherPatientClient.PostAsJsonAsync(
@@ -130,6 +303,80 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
             new RespondToInvitationRequestDto());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPatientAppointmentsReturnsInvitationMetadata()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        Guid appointmentId = await InviteAppointmentAsDoctorAsync(doctorId, patientId);
+
+        using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await patientClient.GetAsync("/appointments/patient");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        List<AppointmentResponseDto>? body = await response.Content.ReadFromJsonAsync<List<AppointmentResponseDto>>(JsonOptions);
+        Assert.NotNull(body);
+        AppointmentResponseDto appointment = Assert.Single(body);
+        Assert.Equal(appointmentId, appointment.Id);
+        Assert.Equal(doctorId, appointment.InvitedByUserId);
+        Assert.Equal(AppointmentParticipantRole.Doctor, appointment.InvitedByRole);
+    }
+
+    [Fact]
+    public async Task GetDoctorAppointmentsReturnsInvitationMetadata()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+        Guid appointmentId = await InviteAppointmentAsPatientAsync(doctorId, patientId, startTime, endTime);
+
+        using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
+        HttpResponseMessage response = await doctorClient.GetAsync("/appointments/doctor");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        List<AppointmentResponseDto>? body = await response.Content.ReadFromJsonAsync<List<AppointmentResponseDto>>(JsonOptions);
+        Assert.NotNull(body);
+        AppointmentResponseDto appointment = Assert.Single(body);
+        Assert.Equal(appointmentId, appointment.Id);
+        Assert.Equal(patientId, appointment.InvitedByUserId);
+        Assert.Equal(AppointmentParticipantRole.Patient, appointment.InvitedByRole);
+    }
+
+    [Fact]
+    public async Task PatientCanCancelOwnPendingInvitation()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+        Guid patientId = Guid.NewGuid();
+        factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
+        factory.FakeUserDirectoryService.Upsert(patientId, "User");
+
+        DateTime startTime = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime endTime = new DateTime(2026, 3, 16, 9, 30, 0, DateTimeKind.Utc);
+        await SeedPublicAvailabilityAsync(doctorId, startTime, endTime);
+        Guid appointmentId = await InviteAppointmentAsPatientAsync(doctorId, patientId, startTime, endTime);
+
+        using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await patientClient.PostAsJsonAsync(
+            $"/appointments/{appointmentId}/cancel",
+            new CancelAppointmentRequestDto { Reason = "Nao preciso mais." });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal(AppointmentStatus.CancelledByPatient, body.Status);
     }
 
     [Fact]
@@ -141,7 +388,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
-        Guid appointmentId = await InviteAppointmentAsync(doctorId, patientId);
+        Guid appointmentId = await InviteAppointmentAsDoctorAsync(doctorId, patientId);
 
         using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
         await patientClient.PostAsJsonAsync($"/appointments/{appointmentId}/accept", new RespondToInvitationRequestDto());
@@ -171,8 +418,8 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
-        DateTime availabilityStart = new(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
-        DateTime availabilityEnd = new(2026, 3, 16, 12, 0, 0, DateTimeKind.Utc);
+        DateTime availabilityStart = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+        DateTime availabilityEnd = new DateTime(2026, 3, 16, 12, 0, 0, DateTimeKind.Utc);
 
         await factory.SeedAsync(context =>
         {
@@ -195,6 +442,8 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
             Appointment acceptedAppointment = Appointment.CreateInvitation(
                 doctorId,
                 patientId,
+                doctorId,
+                AppointmentParticipantRole.Doctor,
                 "Consulta 1",
                 null,
                 null,
@@ -203,12 +452,14 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
                 new DateTime(2026, 3, 16, 10, 0, 0, DateTimeKind.Utc),
                 new DateTime(2026, 3, 15, 20, 0, 0, DateTimeKind.Utc),
                 factory.TestClock.UtcNow);
-            acceptedAppointment.Accept(patientId, factory.TestClock.UtcNow, null);
+            acceptedAppointment.Accept(patientId, AppointmentParticipantRole.Patient, factory.TestClock.UtcNow, null);
             context.Appointments.Add(acceptedAppointment);
 
             Appointment pendingAppointment = Appointment.CreateInvitation(
                 doctorId,
                 patientId,
+                doctorId,
+                AppointmentParticipantRole.Doctor,
                 "Consulta 2",
                 null,
                 null,
@@ -231,7 +482,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         Assert.NotNull(slots);
         Assert.Equal(2, slots.Count);
         Assert.Equal(new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc), slots[0].StartTime);
-        Assert.Equal(new DateTime(2026, 3, 16, 11, 30, 0, DateTimeKind.Utc), slots[1].StartTime);
+        Assert.Equal(new DateTime(2026, 3, 16, 11, 30, 0, 0, DateTimeKind.Utc), slots[1].StartTime);
     }
 
     [Fact]
@@ -258,14 +509,13 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         });
 
         using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
-        HttpResponseMessage inviteResponse = await doctorClient.PostAsJsonAsync("/appointments/invite", new CreateAppointmentInviteRequestDto
-        {
-            PatientId = patientId,
-            Title = "Consulta com milissegundos",
-            StartTime = new DateTime(2026, 3, 17, 10, 0, 0, 889, DateTimeKind.Utc),
-            EndTime = new DateTime(2026, 3, 17, 10, 30, 0, 889, DateTimeKind.Utc),
-            InvitationExpiresAt = new DateTime(2026, 3, 17, 9, 59, 30, 500, DateTimeKind.Utc)
-        });
+        HttpResponseMessage inviteResponse = await doctorClient.PostAsJsonAsync("/appointments/invite", CreateInviteRequestDto(
+            doctorId,
+            patientId,
+            new DateTime(2026, 3, 17, 10, 0, 0, 889, DateTimeKind.Utc),
+            new DateTime(2026, 3, 17, 10, 30, 0, 889, DateTimeKind.Utc),
+            new DateTime(2026, 3, 17, 9, 59, 30, 500, DateTimeKind.Utc),
+            "Consulta com milissegundos"));
 
         Assert.Equal(HttpStatusCode.Created, inviteResponse.StatusCode);
         AppointmentResponseDto? inviteBody = await inviteResponse.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
@@ -294,7 +544,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
-        Guid appointmentId = await InviteAppointmentAsync(doctorId, patientId);
+        Guid appointmentId = await InviteAppointmentAsDoctorAsync(doctorId, patientId);
 
         using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
         await patientClient.PostAsJsonAsync($"/appointments/{appointmentId}/accept", new RespondToInvitationRequestDto());
@@ -305,7 +555,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
             $"/internal/appointments/relationship-check?patientId={patientId}&doctorId={doctorId}&mode=scheduled-or-completed");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<Dictionary<string, bool>>(JsonOptions);
+        Dictionary<string, bool>? body = await response.Content.ReadFromJsonAsync<Dictionary<string, bool>>(JsonOptions);
         Assert.NotNull(body);
         Assert.True(body["hasRelationship"]);
     }
@@ -319,7 +569,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
         factory.FakeUserDirectoryService.Upsert(doctorId, "Doctor");
         factory.FakeUserDirectoryService.Upsert(patientId, "User");
 
-        Guid appointmentId = await InviteAppointmentAsync(doctorId, patientId);
+        Guid appointmentId = await InviteAppointmentAsDoctorAsync(doctorId, patientId);
 
         using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
         await patientClient.PostAsJsonAsync($"/appointments/{appointmentId}/accept", new RespondToInvitationRequestDto());
@@ -329,7 +579,7 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
 
         HttpResponseMessage beforeCompletion = await internalClient.GetAsync(
             $"/internal/appointments/{appointmentId}/ownership?patientId={patientId}&doctorId={doctorId}");
-        var beforeBody = await beforeCompletion.Content.ReadFromJsonAsync<Dictionary<string, bool>>(JsonOptions);
+        Dictionary<string, bool>? beforeBody = await beforeCompletion.Content.ReadFromJsonAsync<Dictionary<string, bool>>(JsonOptions);
         Assert.NotNull(beforeBody);
         Assert.False(beforeBody["matches"]);
 
@@ -339,27 +589,80 @@ public class AppointmentsEndpointsTests : IClassFixture<CustomWebApplicationFact
 
         HttpResponseMessage afterCompletion = await internalClient.GetAsync(
             $"/internal/appointments/{appointmentId}/ownership?patientId={patientId}&doctorId={doctorId}");
-        var afterBody = await afterCompletion.Content.ReadFromJsonAsync<Dictionary<string, bool>>(JsonOptions);
+        Dictionary<string, bool>? afterBody = await afterCompletion.Content.ReadFromJsonAsync<Dictionary<string, bool>>(JsonOptions);
         Assert.NotNull(afterBody);
         Assert.True(afterBody["matches"]);
     }
 
-    private async Task<Guid> InviteAppointmentAsync(Guid doctorId, Guid patientId)
+    private async Task<Guid> InviteAppointmentAsDoctorAsync(Guid doctorId, Guid patientId)
     {
         using HttpClient doctorClient = CreateAuthenticatedClient(doctorId, "Doctor");
-        HttpResponseMessage response = await doctorClient.PostAsJsonAsync("/appointments/invite", new CreateAppointmentInviteRequestDto
-        {
-            PatientId = patientId,
-            Title = "Consulta geral",
-            StartTime = factory.TestClock.UtcNow.AddDays(1).AddHours(1),
-            EndTime = factory.TestClock.UtcNow.AddDays(1).AddHours(2),
-            InvitationExpiresAt = factory.TestClock.UtcNow.AddDays(1)
-        });
+        HttpResponseMessage response = await doctorClient.PostAsJsonAsync("/appointments/invite", CreateInviteRequestDto(
+            doctorId,
+            patientId,
+            factory.TestClock.UtcNow.AddDays(1).AddHours(1),
+            factory.TestClock.UtcNow.AddDays(1).AddHours(2),
+            factory.TestClock.UtcNow.AddDays(1),
+            "Consulta geral"));
 
         AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
         Assert.NotNull(body);
         return body.Id;
     }
+
+    private async Task<Guid> InviteAppointmentAsPatientAsync(Guid doctorId, Guid patientId, DateTime startTime, DateTime endTime)
+    {
+        using HttpClient patientClient = CreateAuthenticatedClient(patientId, "User");
+        HttpResponseMessage response = await patientClient.PostAsJsonAsync("/appointments/invite", CreateInviteRequestDto(
+            doctorId,
+            patientId,
+            startTime,
+            endTime,
+            startTime.AddMinutes(-30),
+            "Consulta geral"));
+
+        AppointmentResponseDto? body = await response.Content.ReadFromJsonAsync<AppointmentResponseDto>(JsonOptions);
+        Assert.NotNull(body);
+        return body.Id;
+    }
+
+    private async Task SeedPublicAvailabilityAsync(Guid doctorId, DateTime startTime, DateTime endTime)
+    {
+        await factory.SeedAsync(context =>
+        {
+            context.DoctorAvailabilities.Add(DoctorAvailability.Create(
+                doctorId,
+                startTime,
+                endTime,
+                ScheduleVisibility.Public,
+                factory.TestClock.UtcNow));
+
+            return Task.CompletedTask;
+        });
+    }
+
+    private static CreateAppointmentInviteRequestDto CreateInviteRequestDto(
+        Guid doctorId,
+        Guid patientId,
+        DateTime startTime,
+        DateTime endTime,
+        DateTime invitationExpiresAt,
+        string title,
+        string? description = null,
+        string? location = null,
+        string? invitationMessage = null) =>
+        new()
+        {
+            DoctorId = doctorId,
+            PatientId = patientId,
+            Title = title,
+            Description = description,
+            Location = location,
+            InvitationMessage = invitationMessage,
+            StartTime = startTime,
+            EndTime = endTime,
+            InvitationExpiresAt = invitationExpiresAt
+        };
 
     private HttpClient CreateAuthenticatedClient(Guid userId, string role)
     {

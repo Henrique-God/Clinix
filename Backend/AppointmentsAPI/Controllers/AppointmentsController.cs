@@ -31,7 +31,6 @@ public class AppointmentsController : ControllerBase
         return Ok(appointment.ToResponse(clock.UtcNow));
     }
 
-    [Authorize(Roles = "Doctor")]
     [HttpPost("invite")]
     public async Task<ActionResult<AppointmentResponseDto>> Invite(
         [FromBody] CreateAppointmentInviteRequestDto request,
@@ -41,7 +40,6 @@ public class AppointmentsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { appointmentId = appointment.Id }, appointment.ToResponse(clock.UtcNow));
     }
 
-    [Authorize(Roles = "User")]
     [HttpPost("{appointmentId:guid}/accept")]
     public async Task<ActionResult<AppointmentResponseDto>> Accept(
         Guid appointmentId,
@@ -52,7 +50,6 @@ public class AppointmentsController : ControllerBase
         return Ok(appointment.ToResponse(clock.UtcNow));
     }
 
-    [Authorize(Roles = "User")]
     [HttpPost("{appointmentId:guid}/reject")]
     public async Task<ActionResult<AppointmentResponseDto>> Reject(
         Guid appointmentId,

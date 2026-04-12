@@ -12,13 +12,13 @@ const Index = () => {
           <Logo size="lg" />
         </div>
         <h1 className="mb-4 text-4xl font-bold text-foreground">
-          Bem-vindo ao MedCare
+          Bem-vindo a Clinix
         </h1>
         <p className="text-xl text-muted-foreground mb-8">
-          Conectando médicos e pacientes para uma saúde melhor
+          Conectando medicos e pacientes para uma jornada clinica melhor
         </p>
         <Button onClick={() => navigate("/")} size="lg">
-          Acessar Plataforma
+          Acessar plataforma
         </Button>
       </div>
     </div>

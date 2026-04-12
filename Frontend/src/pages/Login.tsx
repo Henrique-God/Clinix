@@ -1,45 +1,66 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import doctorHero from "@/assets/doctor-hero.png";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import doctorHero from "@/assets/doctor-hero.png";
+import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState<"patient" | "doctor">("patient");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simula login - redireciona para área correspondente
-    if (userType === "patient") {
-      navigate("/paciente/consultas");
-    } else {
-      navigate("/medico/painel");
+  async function handleLogin(event: React.FormEvent) {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const session = await login(email, password);
+      const redirectPath =
+        (location.state as { from?: { pathname?: string } } | null)?.from
+          ?.pathname ?? resolveHomePath(session.userType);
+
+      navigate(redirectPath, { replace: true });
+    } catch (error) {
+      toast({
+        title: "Falha no login",
+        description:
+          error instanceof Error ? error.message : "Nao foi possivel entrar.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }
+
+  function navigateToRegistration() {
+    navigate(userType === "doctor" ? "/cadastro/medico" : "/cadastro/paciente");
+  }
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Hero */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero flex-col items-center justify-center p-12">
         <div className="max-w-md text-center">
           <img
             src={doctorHero}
-            alt="Médico profissional"
+            alt="Profissional de saude"
             className="w-full max-w-sm mx-auto mb-8 rounded-2xl shadow-lg"
           />
           <p className="text-lg text-muted-foreground">
-            Conectando médicos e pacientes para uma saúde melhor
+            Conectando medicos e pacientes para uma jornada clinica mais simples.
           </p>
         </div>
       </div>
 
-      {/* Right side - Login form */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md animate-slide-up">
           <div className="flex justify-center mb-8">
@@ -53,10 +74,13 @@ export default function Login() {
             Entre com suas credenciais para acessar sua conta
           </p>
 
-          <Tabs value={userType} onValueChange={(v) => setUserType(v as "patient" | "doctor")}>
+          <Tabs
+            value={userType}
+            onValueChange={(value) => setUserType(value as "patient" | "doctor")}
+          >
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="patient">Paciente</TabsTrigger>
-              <TabsTrigger value="doctor">Médico</TabsTrigger>
+              <TabsTrigger value="doctor">Medico</TabsTrigger>
             </TabsList>
 
             <TabsContent value="patient">
@@ -68,8 +92,9 @@ export default function Login() {
                     type="email"
                     placeholder="seu@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -79,12 +104,13 @@ export default function Login() {
                     type="password"
                     placeholder="Sua senha"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(event) => setPassword(event.target.value)}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Entrar
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Entrando..." : "Entrar"}
                 </Button>
               </form>
             </TabsContent>
@@ -98,8 +124,9 @@ export default function Login() {
                     type="email"
                     placeholder="seu@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(event) => setEmail(event.target.value)}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -109,29 +136,26 @@ export default function Login() {
                     type="password"
                     placeholder="Sua senha"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(event) => setPassword(event.target.value)}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Entrar
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Entrando..." : "Entrar"}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Não tem uma conta?{" "}
+            Nao tem uma conta?{" "}
             <button
-              onClick={() => navigate("/cadastro/paciente")}
+              onClick={navigateToRegistration}
               className="text-primary hover:underline font-medium"
             >
               Criar conta
             </button>
-          </p>
-
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Use: ana@paciente.com / senha qualquer
           </p>
         </div>
       </div>

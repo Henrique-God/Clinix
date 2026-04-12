@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const especialidades = [
   "Cardiologia",
@@ -23,6 +25,9 @@ const estados = ["SP", "RJ", "MG", "RS", "PR", "SC", "BA", "PE", "CE", "DF"];
 
 export default function CadastroMedico() {
   const navigate = useNavigate();
+  const { registerDoctor } = useAuth();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nome: "",
     crm: "",
@@ -34,19 +39,63 @@ export default function CadastroMedico() {
     confirmarSenha: "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setFormData({ ...formData, [event.target.name]: event.target.value });
+  }
 
-  const handleSelectChange = (name: string, value: string) => {
+  function handleSelectChange(name: string, value: string) {
     setFormData({ ...formData, [name]: value });
-  };
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simula cadastro
-    navigate("/");
-  };
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+
+    if (formData.senha !== formData.confirmarSenha) {
+      toast({
+        title: "Senhas diferentes",
+        description: "Confira a confirmacao da senha antes de continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.especialidade) {
+      toast({
+        title: "Especialidade obrigatoria",
+        description: "Selecione ao menos uma especialidade para concluir o cadastro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const professionalRegister = [formData.crm.trim(), formData.estado.trim()]
+        .filter(Boolean)
+        .join("/");
+
+      const session = await registerDoctor({
+        name: formData.nome.trim(),
+        professionalRegister,
+        specialties: [formData.especialidade],
+        email: formData.email.trim(),
+        phone: formData.telefone.trim(),
+        password: formData.senha,
+      });
+
+      navigate(resolveHomePath(session.userType), { replace: true });
+    } catch (error) {
+      toast({
+        title: "Nao foi possivel criar sua conta",
+        description:
+          error instanceof Error ? error.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero p-4 sm:p-8">
@@ -54,6 +103,7 @@ export default function CadastroMedico() {
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          disabled={isSubmitting}
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar
@@ -64,9 +114,9 @@ export default function CadastroMedico() {
             <div className="flex justify-center mb-4">
               <Logo size="md" />
             </div>
-            <CardTitle className="text-2xl">Cadastro de Médico</CardTitle>
+            <CardTitle className="text-2xl">Cadastro de Medico</CardTitle>
             <CardDescription>
-              Preencha seus dados profissionais para criar sua conta
+              Preencha os dados profissionais suportados pelo cadastro Clinix
             </CardDescription>
           </CardHeader>
 
@@ -81,6 +131,7 @@ export default function CadastroMedico() {
                   value={formData.nome}
                   onChange={handleChange}
                   className="input-focus"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -90,10 +141,11 @@ export default function CadastroMedico() {
                   <Input
                     id="crm"
                     name="crm"
-                    placeholder="Número do CRM"
+                    placeholder="Numero do CRM"
                     value={formData.crm}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -101,6 +153,7 @@ export default function CadastroMedico() {
                   <Select
                     value={formData.estado}
                     onValueChange={(value) => handleSelectChange("estado", value)}
+                    disabled={isSubmitting}
                   >
                     <SelectTrigger className="input-focus">
                       <SelectValue placeholder="UF" />
@@ -121,14 +174,15 @@ export default function CadastroMedico() {
                 <Select
                   value={formData.especialidade}
                   onValueChange={(value) => handleSelectChange("especialidade", value)}
+                  disabled={isSubmitting}
                 >
                   <SelectTrigger className="input-focus">
                     <SelectValue placeholder="Selecione uma especialidade" />
                   </SelectTrigger>
                   <SelectContent>
-                    {especialidades.map((esp) => (
-                      <SelectItem key={esp} value={esp}>
-                        {esp}
+                    {especialidades.map((especialidade) => (
+                      <SelectItem key={especialidade} value={especialidade}>
+                        {especialidade}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -145,6 +199,7 @@ export default function CadastroMedico() {
                     value={formData.telefone}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -157,6 +212,7 @@ export default function CadastroMedico() {
                     value={formData.email}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -172,6 +228,7 @@ export default function CadastroMedico() {
                     value={formData.senha}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -184,14 +241,15 @@ export default function CadastroMedico() {
                     value={formData.confirmarSenha}
                     onChange={handleChange}
                     className="input-focus"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
 
               <div className="bg-secondary/50 rounded-lg p-4 mt-4">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Próximo passo:</strong> Após o cadastro, você poderá
-                  configurar seus horários de atendimento no painel
+                  <strong>Proximo passo:</strong> apos o cadastro, voce podera
+                  configurar seus horarios de atendimento no painel.
                 </p>
               </div>
 
@@ -201,11 +259,12 @@ export default function CadastroMedico() {
                   variant="outline"
                   onClick={() => navigate("/")}
                   className="flex-1"
+                  disabled={isSubmitting}
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" className="flex-1">
-                  Concluir cadastro
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? "Criando conta..." : "Concluir cadastro"}
                 </Button>
               </div>
             </form>

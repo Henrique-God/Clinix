@@ -14,6 +14,7 @@ services:
       Appointments__BaseUrl: http://appointments-api:8080/
       Appointments__InternalApiKey: ${APPOINTMENTS_INTERNAL_API_KEY}
       InternalServices__ApiKey: ${USERS_INTERNAL_API_KEY}
+      Cors__AllowedOrigins: ${FRONTEND_ALLOWED_ORIGINS}
       Aws__Region: ${AWS_REGION}
       Aws__S3BucketName: ${S3_BUCKET}
     restart: unless-stopped
@@ -35,6 +36,7 @@ services:
       ClinicalRecords__BaseUrl: http://users-api:8080/
       ClinicalRecords__InternalApiKey: ${USERS_INTERNAL_API_KEY}
       InternalServices__ApiKey: ${APPOINTMENTS_INTERNAL_API_KEY}
+      Cors__AllowedOrigins: ${FRONTEND_ALLOWED_ORIGINS}
     depends_on:
       - users-api
     restart: unless-stopped
@@ -68,6 +70,7 @@ services:
       EMBEDDING_MODEL_NAME: intfloat/multilingual-e5-base
       CHAT_MEMORY_POSTGRES_DSN: ${DB_CONNECTION}
       CHAT_MEMORY_WINDOW_MESSAGES: ${CHAT_MEMORY_WINDOW_MESSAGES:-12}
+      CORS_ALLOWED_ORIGINS: ${FRONTEND_ALLOWED_ORIGINS}
     volumes:
       - chatbot-chroma:/data/chroma
     depends_on:

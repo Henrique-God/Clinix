@@ -35,23 +35,44 @@ public class AppointmentService
     public async Task<Appointment> InviteAsync(CreateAppointmentInviteRequestDto request, CancellationToken cancellationToken)
     {
         CurrentActor actor = currentActorAccessor.GetRequiredActor();
-        if (!actor.IsDoctor)
-            throw DomainRuleException.Forbidden("doctor_role_required", "Only doctors can create appointment invitations.");
-
-        await EnsureActiveDoctorAsync(actor.UserId, cancellationToken);
-        await EnsureActivePatientAsync(request.PatientId, cancellationToken);
-
         DateTime utcNow = clock.UtcNow;
         DateTime startTime = NormalizeUtc(request.StartTime);
         DateTime endTime = NormalizeUtc(request.EndTime);
         DateTime invitationExpiresAt = NormalizeUtc(request.InvitationExpiresAt);
+        AppointmentParticipantRole invitedByRole;
+
+        if (actor.IsDoctor)
+        {
+            if (request.DoctorId != actor.UserId)
+                throw DomainRuleException.Forbidden("doctor_not_authorized", "Doctors can only create invitations for themselves.");
+
+            invitedByRole = AppointmentParticipantRole.Doctor;
+            await EnsureActiveDoctorAsync(actor.UserId, cancellationToken);
+            await EnsureActivePatientAsync(request.PatientId, cancellationToken);
+        }
+        else if (actor.IsPatient)
+        {
+            if (request.PatientId != actor.UserId)
+                throw DomainRuleException.Forbidden("patient_not_authorized", "Patients can only create invitations for themselves.");
+
+            invitedByRole = AppointmentParticipantRole.Patient;
+            await EnsureActivePatientAsync(actor.UserId, cancellationToken);
+            await EnsureActiveDoctorAsync(request.DoctorId, cancellationToken);
+            await EnsureDoctorHasPublicAvailabilityAsync(request.DoctorId, startTime, endTime, cancellationToken);
+        }
+        else
+        {
+            throw DomainRuleException.Forbidden("unsupported_role", "Only doctors or patients can create appointment invitations.");
+        }
 
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(cancellationToken);
-        await EnsureDoctorScheduleIsFreeAsync(actor.UserId, startTime, endTime, null, utcNow, cancellationToken);
+        await EnsureDoctorScheduleIsFreeAsync(request.DoctorId, startTime, endTime, null, utcNow, cancellationToken);
 
         Appointment appointment = Appointment.CreateInvitation(
-            actor.UserId,
+            request.DoctorId,
             request.PatientId,
+            actor.UserId,
+            invitedByRole,
             request.Title,
             request.Description,
             request.Location,
@@ -76,6 +97,8 @@ public class AppointmentService
             appointmentId = appointment.Id,
             doctorId = appointment.DoctorId,
             patientId = appointment.PatientId,
+            invitedByUserId = appointment.InvitationMetadata.InvitedByUserId,
+            invitedByRole = appointment.InvitationMetadata.InvitedByRole.ToString(),
             startTime = appointment.StartTime,
             endTime = appointment.EndTime
         }, cancellationToken);
@@ -86,16 +109,19 @@ public class AppointmentService
     public async Task<Appointment> AcceptAsync(Guid appointmentId, RespondToInvitationRequestDto? request, CancellationToken cancellationToken)
     {
         CurrentActor actor = currentActorAccessor.GetRequiredActor();
-        if (!actor.IsPatient)
-            throw DomainRuleException.Forbidden("patient_role_required", "Only patients can accept appointment invitations.");
+        if (!actor.IsDoctor && !actor.IsPatient)
+            throw DomainRuleException.Forbidden("unsupported_role", "Only doctors or patients can accept appointment invitations.");
 
         Appointment appointment = await GetAppointmentForUpdateAsync(appointmentId, cancellationToken);
         await EnsureActiveDoctorAsync(appointment.DoctorId, cancellationToken);
 
+        if (actor.IsDoctor)
+            await EnsureActiveDoctorAsync(actor.UserId, cancellationToken);
+
         DateTime utcNow = clock.UtcNow;
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(cancellationToken);
 
-        appointment.Accept(actor.UserId, utcNow, request?.Note);
+        appointment.Accept(actor.UserId, actor.IsDoctor ? AppointmentParticipantRole.Doctor : AppointmentParticipantRole.Patient, utcNow, request?.Note);
         MarkLatestStatusHistoryAsAdded(appointment);
         EnsureAppointmentAgendaEvent(appointment, utcNow);
 
@@ -131,13 +157,16 @@ public class AppointmentService
     public async Task<Appointment> RejectAsync(Guid appointmentId, RespondToInvitationRequestDto? request, CancellationToken cancellationToken)
     {
         CurrentActor actor = currentActorAccessor.GetRequiredActor();
-        if (!actor.IsPatient)
-            throw DomainRuleException.Forbidden("patient_role_required", "Only patients can reject appointment invitations.");
+        if (!actor.IsDoctor && !actor.IsPatient)
+            throw DomainRuleException.Forbidden("unsupported_role", "Only doctors or patients can reject appointment invitations.");
 
         Appointment appointment = await GetAppointmentForUpdateAsync(appointmentId, cancellationToken);
+        if (actor.IsDoctor)
+            await EnsureActiveDoctorAsync(actor.UserId, cancellationToken);
+
         DateTime utcNow = clock.UtcNow;
 
-        appointment.Reject(actor.UserId, utcNow, request?.Note);
+        appointment.Reject(actor.UserId, actor.IsDoctor ? AppointmentParticipantRole.Doctor : AppointmentParticipantRole.Patient, utcNow, request?.Note);
         MarkLatestStatusHistoryAsAdded(appointment);
         EnsureAppointmentAgendaEvent(appointment, utcNow);
 
@@ -374,6 +403,24 @@ public class AppointmentService
 
         if (hasManualEventConflict)
             throw DomainRuleException.Conflict("doctor_schedule_conflict", "The doctor already has a blocking calendar event in this time range.");
+    }
+
+    private async Task EnsureDoctorHasPublicAvailabilityAsync(
+        Guid doctorId,
+        DateTime startTime,
+        DateTime endTime,
+        CancellationToken cancellationToken)
+    {
+        bool isCoveredByPublicAvailability = await context.DoctorAvailabilities.AnyAsync(item =>
+            item.DoctorId == doctorId
+            && !item.DeletedAt.HasValue
+            && item.Visibility == ScheduleVisibility.Public
+            && item.StartTime <= startTime
+            && item.EndTime >= endTime,
+            cancellationToken);
+
+        if (!isCoveredByPublicAvailability)
+            throw DomainRuleException.Conflict("doctor_public_availability_required", "Patients can only invite doctors within a public availability slot.");
     }
 
     private async Task<UserDirectoryEntry> EnsureActiveDoctorAsync(Guid doctorId, CancellationToken cancellationToken)

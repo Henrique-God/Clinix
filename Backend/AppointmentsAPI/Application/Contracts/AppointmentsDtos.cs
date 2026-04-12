@@ -6,6 +6,9 @@ namespace AppointmentsAPI.Application.Contracts;
 public sealed class CreateAppointmentInviteRequestDto
 {
     [Required]
+    public Guid DoctorId { get; set; }
+
+    [Required]
     public Guid PatientId { get; set; }
 
     [Required]
@@ -87,9 +90,13 @@ public sealed class AppointmentResponseDto
 
     public AppointmentStatus Status { get; set; }
 
+    public Guid InvitedByUserId { get; set; }
+
+    public AppointmentParticipantRole InvitedByRole { get; set; }
+
     public string? InvitationMessage { get; set; }
 
-    public string? PatientResponseNote { get; set; }
+    public string? ResponseNote { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

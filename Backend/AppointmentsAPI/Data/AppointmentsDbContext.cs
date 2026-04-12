@@ -58,8 +58,9 @@ public class AppointmentsDbContext : DbContext
         {
             entity.ToTable("appointment_invitation_metadata");
             entity.HasKey(item => item.AppointmentId);
+            entity.Property(item => item.InvitedByRole).HasConversion<int>();
             entity.Property(item => item.InvitationMessage).HasMaxLength(1000);
-            entity.Property(item => item.PatientResponseNote).HasMaxLength(1000);
+            entity.Property(item => item.ResponseNote).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<AppointmentStatusHistory>(entity =>

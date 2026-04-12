@@ -1,54 +1,102 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, addDays, startOfWeek, isSameDay } from "date-fns";
+import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
 import { Stepper } from "@/components/Stepper";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { appointmentsApi } from "@/lib/api/clinix-api";
+import { formatTimeLabel } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 const steps = [
   { id: "especialidade", label: "Especialidade" },
-  { id: "medico", label: "Médico" },
+  { id: "medico", label: "Medico" },
   { id: "data-hora", label: "Data e Hora" },
-  { id: "confirmacao", label: "Confirmação" },
-];
-
-const horarios = [
-  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
-  "11:00", "11:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30",
+  { id: "confirmacao", label: "Confirmacao" },
 ];
 
 export default function SelecionarDataHora() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { session } = useAuth();
   const especialidade = searchParams.get("especialidade") || "";
   const medico = searchParams.get("medico") || "";
 
-  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedHorario, setSelectedHorario] = useState<string | null>(null);
+  const [weekStart, setWeekStart] = useState(
+    startOfWeek(new Date(), { weekStartsOn: 1 }),
+  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(null);
 
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
+    [weekStart],
+  );
 
-  const handlePrevWeek = () => {
-    setWeekStart(addDays(weekStart, -7));
-  };
+  const availableSlotsQuery = useQuery({
+    queryKey: ["appointments", "available-slots", medico, weekStart.toISOString()],
+    queryFn: () =>
+      appointmentsApi.getAvailableSlots(session!.token, medico, {
+        fromUtc: weekStart.toISOString(),
+        toUtc: addDays(weekStart, 7).toISOString(),
+        durationMinutes: 30,
+    }),
+    enabled: Boolean(session?.token && medico),
+  });
+  const availableSlots = useMemo(
+    () => availableSlotsQuery.data ?? [],
+    [availableSlotsQuery.data],
+  );
 
-  const handleNextWeek = () => {
-    setWeekStart(addDays(weekStart, 7));
-  };
+  const slotsByDate = useMemo(() => {
+    const groups = new Map<string, typeof availableSlots>();
 
-  const handleNext = () => {
-    if (selectedDate && selectedHorario) {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      navigate(
-        `/agendar/confirmacao?especialidade=${especialidade}&medico=${medico}&data=${dateStr}&horario=${selectedHorario}`
-      );
+    availableSlots.forEach((slot) => {
+      const dateKey = format(parseISO(slot.startTime), "yyyy-MM-dd");
+      const currentGroup = groups.get(dateKey) ?? [];
+      groups.set(dateKey, [...currentGroup, slot]);
+    });
+
+    return groups;
+  }, [availableSlots]);
+
+  const selectedDateSlots = selectedDate ? slotsByDate.get(selectedDate) ?? [] : [];
+  const selectedSlot =
+    selectedSlotStart
+      ? selectedDateSlots.find((slot) => slot.startTime === selectedSlotStart) ?? null
+      : null;
+
+  useEffect(() => {
+    if (!availableSlots.length) {
+      setSelectedDate(null);
+      setSelectedSlotStart(null);
+      return;
     }
-  };
+
+    const firstAvailableDate = format(
+      parseISO(availableSlots[0].startTime),
+      "yyyy-MM-dd",
+    );
+
+    setSelectedDate((current) => (current && slotsByDate.has(current) ? current : firstAvailableDate));
+    setSelectedSlotStart(null);
+  }, [availableSlots, slotsByDate]);
+
+  function handleNext() {
+    if (!selectedSlot) {
+      return;
+    }
+
+    navigate(
+      `/agendar/confirmacao?especialidade=${encodeURIComponent(especialidade)}&medico=${encodeURIComponent(
+        medico,
+      )}&inicio=${encodeURIComponent(selectedSlot.startTime)}&fim=${encodeURIComponent(selectedSlot.endTime)}`,
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero p-4 sm:p-8">
@@ -59,90 +107,104 @@ export default function SelecionarDataHora() {
 
         <Card className="p-6 sm:p-8 animate-slide-up shadow-card">
           <h1 className="text-2xl font-bold text-center mb-2">
-            Selecione Data e Horário
+            Selecione data e horario
           </h1>
           <p className="text-muted-foreground text-center mb-8">
-            Escolha o melhor dia e horário para sua consulta
+            Escolha um horario publico disponivel para enviar o convite de consulta.
           </p>
 
-          {/* Week Navigation */}
           <div className="flex items-center justify-between mb-6">
-            <Button variant="ghost" size="icon" onClick={handlePrevWeek}>
+            <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, -7))}>
               <ChevronLeft className="w-5 h-5" />
             </Button>
             <span className="font-medium">
               {format(weekStart, "MMMM yyyy", { locale: ptBR })}
             </span>
-            <Button variant="ghost" size="icon" onClick={handleNextWeek}>
+            <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, 7))}>
               <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
 
-          {/* Days of Week */}
-          <div className="grid grid-cols-7 gap-2 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-8">
             {weekDays.map((day) => {
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-              const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
-              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+              const dateKey = format(day, "yyyy-MM-dd");
+              const hasSlots = slotsByDate.has(dateKey);
+              const isSelected = selectedDate === dateKey;
 
               return (
                 <button
                   key={day.toISOString()}
-                  onClick={() => !isPast && !isWeekend && setSelectedDate(day)}
-                  disabled={isPast || isWeekend}
+                  onClick={() => hasSlots && setSelectedDate(dateKey)}
+                  disabled={!hasSlots}
                   className={cn(
-                    "p-3 rounded-lg text-center transition-all",
+                    "p-3 rounded-lg text-center transition-all border",
                     isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card border border-border hover:border-primary",
-                    (isPast || isWeekend) && "opacity-50 cursor-not-allowed"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border hover:border-primary",
+                    !hasSlots && "opacity-50 cursor-not-allowed bg-muted",
                   )}
                 >
                   <div className="text-xs uppercase mb-1">
                     {format(day, "EEE", { locale: ptBR })}
                   </div>
-                  <div className="text-lg font-semibold">
-                    {format(day, "d")}
+                  <div className="text-lg font-semibold">{format(day, "d")}</div>
+                  <div className="text-xs mt-1">
+                    {hasSlots ? `${slotsByDate.get(dateKey)?.length ?? 0} horarios` : "Sem vagas"}
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {/* Time Slots */}
-          {selectedDate && (
+          {availableSlotsQuery.isLoading ? (
+            <Card className="p-8 text-center bg-secondary/30 border-dashed mb-8">
+              <p className="text-muted-foreground">Carregando horarios...</p>
+            </Card>
+          ) : availableSlotsQuery.isError ? (
+            <Card className="p-8 text-center bg-destructive/5 border-destructive/20 mb-8">
+              <p className="text-sm text-muted-foreground">
+                Nao foi possivel carregar os horarios disponiveis.
+              </p>
+            </Card>
+          ) : selectedDateSlots.length > 0 && selectedDate ? (
             <div className="mb-8 animate-fade-in">
               <h3 className="font-medium mb-4 text-center">
-                Horários disponíveis para{" "}
-                {format(selectedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
+                Horarios para{" "}
+                {format(parseISO(`${selectedDate}T00:00:00`), "EEEE, d 'de' MMMM", {
+                  locale: ptBR,
+                })}
               </h3>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                {horarios.map((horario) => {
-                  const isSelected = selectedHorario === horario;
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                {selectedDateSlots.map((slot) => {
+                  const isSelected = selectedSlotStart === slot.startTime;
 
                   return (
                     <button
-                      key={horario}
-                      onClick={() => setSelectedHorario(horario)}
+                      key={slot.startTime}
+                      onClick={() => setSelectedSlotStart(slot.startTime)}
                       className={cn("time-slot", isSelected && "selected")}
                     >
-                      {horario}
+                      {formatTimeLabel(slot.startTime)}
                     </button>
                   );
                 })}
               </div>
             </div>
+          ) : (
+            <Card className="p-8 text-center bg-secondary/30 border-dashed mb-8">
+              <p className="font-medium mb-2">Nenhum horario publico nesta semana</p>
+              <p className="text-sm text-muted-foreground">
+                Avance para outra semana ou escolha outro profissional.
+              </p>
+            </Card>
           )}
 
           <div className="flex gap-3 justify-center">
             <Button variant="outline" onClick={() => navigate(-1)}>
               Voltar
             </Button>
-            <Button
-              onClick={handleNext}
-              disabled={!selectedDate || !selectedHorario}
-            >
-              Próximo
+            <Button onClick={handleNext} disabled={!selectedSlot}>
+              Proximo
             </Button>
           </div>
         </Card>

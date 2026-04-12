@@ -24,6 +24,12 @@ public enum ScheduleVisibility
     Private = 2
 }
 
+public enum AppointmentParticipantRole
+{
+    Patient = 1,
+    Doctor = 2
+}
+
 public class Appointment
 {
     public Guid Id { get; set; }
@@ -67,6 +73,8 @@ public class Appointment
     public static Appointment CreateInvitation(
         Guid doctorId,
         Guid patientId,
+        Guid invitedByUserId,
+        AppointmentParticipantRole invitedByRole,
         string? title,
         string? description,
         string? location,
@@ -87,7 +95,12 @@ public class Appointment
         if (invitationExpiresAt > startTime)
             throw DomainRuleException.Validation("invitation_expires_after_start", "Invitation expiration must be on or before the appointment start time.");
 
-        var appointment = new Appointment
+        if (doctorId == patientId)
+            throw DomainRuleException.Validation("invalid_participants", "Doctor and patient must be different users.");
+
+        ValidateInvitationInitiator(doctorId, patientId, invitedByUserId, invitedByRole);
+
+        Appointment appointment = new()
         {
             Id = Guid.NewGuid(),
             DoctorId = doctorId,
@@ -106,13 +119,21 @@ public class Appointment
         appointment.InvitationMetadata = new AppointmentInvitationMetadata
         {
             AppointmentId = appointment.Id,
-            InvitedByDoctorId = doctorId,
+            InvitedByUserId = invitedByUserId,
+            InvitedByRole = invitedByRole,
             InvitationMessage = SchedulingRules.OptionalTrimmed(invitationMessage, 1000),
             CreatedAt = utcNow,
             UpdatedAt = utcNow
         };
 
-        appointment.RegisterStatusChange(null, appointment.Status, doctorId, utcNow, "Invitation created.");
+        appointment.RegisterStatusChange(
+            null,
+            appointment.Status,
+            invitedByUserId,
+            utcNow,
+            invitedByRole == AppointmentParticipantRole.Doctor
+                ? "Invitation created by doctor."
+                : "Invitation created by patient.");
         return appointment;
     }
 
@@ -123,37 +144,69 @@ public class Appointment
         Status == AppointmentStatus.Accepted
         || (Status == AppointmentStatus.PendingAcceptance && !IsInvitationExpired(utcNow));
 
-    public void Accept(Guid actingPatientId, DateTime utcNow, string? responseNote)
+    public void Accept(Guid actingUserId, AppointmentParticipantRole actingRole, DateTime utcNow, string? responseNote)
     {
-        EnsureOwnedByPatient(actingPatientId);
+        EnsureCanRespondToInvitation(actingUserId, actingRole);
         EnsurePendingAndActionable(utcNow);
 
         AppointmentStatus previousStatus = Status;
         Status = AppointmentStatus.Accepted;
         AcceptedAt = utcNow;
         UpdatedAt = utcNow;
-        InvitationMetadata.PatientResponseNote = SchedulingRules.OptionalTrimmed(responseNote, 1000);
+        InvitationMetadata.ResponseNote = SchedulingRules.OptionalTrimmed(responseNote, 1000);
         InvitationMetadata.UpdatedAt = utcNow;
-        RegisterStatusChange(previousStatus, Status, actingPatientId, utcNow, "Invitation accepted by patient.");
+        RegisterStatusChange(
+            previousStatus,
+            Status,
+            actingUserId,
+            utcNow,
+            actingRole == AppointmentParticipantRole.Doctor
+                ? "Invitation accepted by doctor."
+                : "Invitation accepted by patient.");
     }
 
-    public void Reject(Guid actingPatientId, DateTime utcNow, string? responseNote)
+    public void Reject(Guid actingUserId, AppointmentParticipantRole actingRole, DateTime utcNow, string? responseNote)
     {
-        EnsureOwnedByPatient(actingPatientId);
+        EnsureCanRespondToInvitation(actingUserId, actingRole);
         EnsurePendingAndActionable(utcNow);
 
         AppointmentStatus previousStatus = Status;
         Status = AppointmentStatus.Rejected;
         RejectedAt = utcNow;
         UpdatedAt = utcNow;
-        InvitationMetadata.PatientResponseNote = SchedulingRules.OptionalTrimmed(responseNote, 1000);
+        InvitationMetadata.ResponseNote = SchedulingRules.OptionalTrimmed(responseNote, 1000);
         InvitationMetadata.UpdatedAt = utcNow;
-        RegisterStatusChange(previousStatus, Status, actingPatientId, utcNow, "Invitation rejected by patient.");
+        RegisterStatusChange(
+            previousStatus,
+            Status,
+            actingUserId,
+            utcNow,
+            actingRole == AppointmentParticipantRole.Doctor
+                ? "Invitation rejected by doctor."
+                : "Invitation rejected by patient.");
     }
 
     public void CancelByPatient(Guid actingPatientId, DateTime utcNow, string? reason)
     {
         EnsureOwnedByPatient(actingPatientId);
+
+        if (Status == AppointmentStatus.PendingAcceptance)
+        {
+            if (InvitationMetadata.InvitedByRole != AppointmentParticipantRole.Patient)
+                throw DomainRuleException.Conflict("appointment_not_cancellable", "Patients can only cancel pending invitations that they created.");
+
+            AppointmentStatus pendingPreviousStatus = Status;
+            Status = AppointmentStatus.CancelledByPatient;
+            CancelledAt = utcNow;
+            UpdatedAt = utcNow;
+            RegisterStatusChange(
+                pendingPreviousStatus,
+                Status,
+                actingPatientId,
+                utcNow,
+                SchedulingRules.OptionalTrimmed(reason, 1000) ?? "Pending invitation cancelled by patient.");
+            return;
+        }
 
         if (Status != AppointmentStatus.Accepted)
             throw DomainRuleException.Conflict("appointment_not_cancellable", "Only accepted appointments can be cancelled by the patient.");
@@ -214,6 +267,38 @@ public class Appointment
             throw DomainRuleException.Forbidden("doctor_not_authorized", "This appointment does not belong to the current doctor.");
     }
 
+    private void EnsureCanRespondToInvitation(Guid actingUserId, AppointmentParticipantRole actingRole)
+    {
+        if (InvitationMetadata.InvitedByRole == actingRole)
+            throw DomainRuleException.Forbidden("invitation_self_response_forbidden", "The invitation creator cannot respond to their own invitation.");
+
+        EnsureOwnedByRole(actingUserId, actingRole);
+    }
+
+    private void EnsureOwnedByRole(Guid actingUserId, AppointmentParticipantRole actingRole)
+    {
+        if (actingRole == AppointmentParticipantRole.Doctor)
+        {
+            EnsureOwnedByDoctor(actingUserId);
+            return;
+        }
+
+        EnsureOwnedByPatient(actingUserId);
+    }
+
+    private static void ValidateInvitationInitiator(
+        Guid doctorId,
+        Guid patientId,
+        Guid invitedByUserId,
+        AppointmentParticipantRole invitedByRole)
+    {
+        if (invitedByRole == AppointmentParticipantRole.Doctor && invitedByUserId != doctorId)
+            throw DomainRuleException.Validation("invalid_inviter", "Doctor invitations must be created by the appointment doctor.");
+
+        if (invitedByRole == AppointmentParticipantRole.Patient && invitedByUserId != patientId)
+            throw DomainRuleException.Validation("invalid_inviter", "Patient invitations must be created by the appointment patient.");
+    }
+
     private void EnsurePendingAndActionable(DateTime utcNow)
     {
         if (Status != AppointmentStatus.PendingAcceptance)
@@ -242,11 +327,13 @@ public class AppointmentInvitationMetadata
 {
     public Guid AppointmentId { get; set; }
 
-    public Guid InvitedByDoctorId { get; set; }
+    public Guid InvitedByUserId { get; set; }
+
+    public AppointmentParticipantRole InvitedByRole { get; set; }
 
     public string? InvitationMessage { get; set; }
 
-    public string? PatientResponseNote { get; set; }
+    public string? ResponseNote { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

@@ -153,10 +153,13 @@ namespace AppointmentsAPI.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<Guid>("InvitedByDoctorId")
+                    b.Property<int>("InvitedByRole")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("InvitedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PatientResponseNote")
+                    b.Property<string>("ResponseNote")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
