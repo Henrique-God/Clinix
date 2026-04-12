@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Download, FileText, Plus, Stethoscope, Upload } from "lucide-react";
+import { Activity, ArrowLeft, Dumbbell, Download, FileText, Filter, Plus, Stethoscope, Upload, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DoctorLayout } from "@/components/layouts/DoctorLayout";
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { appointmentsApi, clinicalRecordsApi, usersApi } from "@/lib/api/clinix-api";
+import { appointmentsApi, clinicalRecordsApi, stravaApi, usersApi, workoutRoutinesApi } from "@/lib/api/clinix-api";
 import {
+  formatDistance,
+  formatDuration,
   getClinicalEntryTypeLabel,
+  getDayOfWeekLabel,
   getInitials,
   resolveAppointmentStatus,
   resolveClinicalEntryType,
+  StravaActivityResponse,
+  WorkoutRoutine,
 } from "@/lib/api/domain";
 import { formatDateLabel, formatDateTime } from "@/lib/date-utils";
 import { downloadBlob } from "@/lib/files";
@@ -329,6 +334,14 @@ export default function ProntuarioPaciente() {
               <FileText className="w-4 h-4" />
               Documentos
             </TabsTrigger>
+            <TabsTrigger value="strava" className="gap-2">
+              <Activity className="w-4 h-4" />
+              Atividades
+            </TabsTrigger>
+            <TabsTrigger value="treinos" className="gap-2">
+              <Dumbbell className="w-4 h-4" />
+              Treinos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="historico">
@@ -519,8 +532,272 @@ export default function ProntuarioPaciente() {
               </Card>
             )}
           </TabsContent>
+
+          <TabsContent value="strava">
+            <PatientStravaActivities patientId={patientId} token={session!.token} />
+          </TabsContent>
+
+          <TabsContent value="treinos">
+            <PatientWorkoutRoutines patientId={patientId} token={session!.token} />
+          </TabsContent>
         </Tabs>
       </div>
     </DoctorLayout>
+  );
+}
+
+function PatientStravaActivities({ patientId, token }: { patientId: string; token: string }) {
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const activitiesQuery = useQuery({
+    queryKey: ["strava", "patient-activities", patientId],
+    queryFn: () => stravaApi.listPatientActivities(token, patientId, 1, 200),
+    enabled: Boolean(token && patientId),
+  });
+
+  const activities = activitiesQuery.data ?? [];
+
+  const activityTypes = useMemo(() => {
+    const types = new Set(activities.map((a: StravaActivityResponse) => a.type));
+    return Array.from(types).sort();
+  }, [activities]);
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter((a: StravaActivityResponse) => {
+      if (typeFilter !== "all" && a.type !== typeFilter) return false;
+      const actDate = new Date(a.startDate);
+      if (dateFrom) {
+        if (actDate < new Date(dateFrom)) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (actDate > to) return false;
+      }
+      return true;
+    });
+  }, [activities, typeFilter, dateFrom, dateTo]);
+
+  const hasActiveFilters = typeFilter !== "all" || dateFrom !== "" || dateTo !== "";
+
+  function clearFilters() {
+    setTypeFilter("all");
+    setDateFrom("");
+    setDateTo("");
+  }
+
+  if (activitiesQuery.isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (activitiesQuery.isError) {
+    return (
+      <Card className="p-8 text-center bg-secondary/30 border-dashed">
+        <p className="text-muted-foreground">
+          Nao foi possivel carregar as atividades. O paciente pode nao ter conectado o Strava
+          ou voce pode nao ter permissao de acesso.
+        </p>
+      </Card>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <Card className="p-8 text-center bg-secondary/30 border-dashed">
+        <Activity className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+        <p className="text-muted-foreground">Nenhuma atividade do Strava disponivel para este paciente.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Atividades ({filteredActivities.length})</h3>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Filter className="w-3 h-3" /> Tipo
+          </label>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {activityTypes.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">De</label>
+          <Input
+            type="date"
+            className="w-[160px]"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Ate</label>
+          <Input
+            type="date"
+            className="w-[160px]"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+            <X className="w-3 h-3" /> Limpar
+          </Button>
+        )}
+      </div>
+
+      {filteredActivities.length === 0 && (
+        <Card className="p-8 text-center">
+          <Filter className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground">Nenhuma atividade corresponde aos filtros selecionados.</p>
+        </Card>
+      )}
+
+      <div className="space-y-2">
+        {filteredActivities.map((activity: StravaActivityResponse) => (
+          <Card key={activity.id} className="p-4">
+            <div>
+              <h4 className="font-medium">{activity.name}</h4>
+              <p className="text-xs text-muted-foreground">
+                {activity.type} &middot;{" "}
+                {new Date(activity.startDate).toLocaleDateString("pt-BR", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Distancia</p>
+                <p className="text-sm font-medium">{formatDistance(activity.distanceMeters)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Tempo</p>
+                <p className="text-sm font-medium">{formatDuration(activity.movingTimeSeconds)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Elevacao</p>
+                <p className="text-sm font-medium">{Math.round(activity.totalElevationGain)} m</p>
+              </div>
+              {activity.averageHeartRate != null && (
+                <div>
+                  <p className="text-xs text-muted-foreground">FC media</p>
+                  <p className="text-sm font-medium">{Math.round(activity.averageHeartRate)} bpm</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PatientWorkoutRoutines({ patientId, token }: { patientId: string; token: string }) {
+  const routinesQuery = useQuery({
+    queryKey: ["workout-routines", "patient", patientId],
+    queryFn: () => workoutRoutinesApi.listPatientRoutines(token, patientId),
+    enabled: Boolean(token && patientId),
+  });
+
+  if (routinesQuery.isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (routinesQuery.isError) {
+    return (
+      <Card className="p-8 text-center bg-secondary/30 border-dashed">
+        <p className="text-muted-foreground">
+          Nao foi possivel carregar as rotinas de treino. O paciente pode nao ter rotinas cadastradas
+          ou voce pode nao ter permissao de acesso.
+        </p>
+      </Card>
+    );
+  }
+
+  const routines = routinesQuery.data ?? [];
+
+  if (routines.length === 0) {
+    return (
+      <Card className="p-8 text-center bg-secondary/30 border-dashed">
+        <Dumbbell className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+        <p className="text-muted-foreground">Nenhuma rotina de treino cadastrada por este paciente.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {routines.map((routine: WorkoutRoutine) => (
+        <Card key={routine.id} className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="font-semibold">{routine.name}</h4>
+              <p className="text-xs text-muted-foreground">
+                {getDayOfWeekLabel(routine.dayOfWeek)} &middot; {routine.exercises.length} exercicio(s)
+              </p>
+            </div>
+          </div>
+          {routine.description && (
+            <p className="text-sm text-muted-foreground mb-3">{routine.description}</p>
+          )}
+          {routine.exercises.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-2 font-medium">Exercicio</th>
+                    <th className="text-center p-2 font-medium">Series</th>
+                    <th className="text-center p-2 font-medium">Reps</th>
+                    <th className="text-center p-2 font-medium hidden sm:table-cell">Descanso</th>
+                    <th className="text-left p-2 font-medium hidden md:table-cell">Notas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {routine.exercises.map((exercise) => (
+                    <tr key={exercise.id} className="border-t">
+                      <td className="p-2">{exercise.name}</td>
+                      <td className="p-2 text-center">{exercise.sets}</td>
+                      <td className="p-2 text-center">{exercise.reps}</td>
+                      <td className="p-2 text-center hidden sm:table-cell">
+                        {exercise.restSeconds ? `${exercise.restSeconds}s` : "-"}
+                      </td>
+                      <td className="p-2 text-muted-foreground hidden md:table-cell">
+                        {exercise.notes || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      ))}
+    </div>
   );
 }
