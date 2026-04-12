@@ -55,7 +55,7 @@ public class DirectoryEndpointsTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        DirectoryUserResponse? body = await response.Content.ReadFromJsonAsync<DirectoryUserResponse>();
+        DirectoryUserResponse? body = await response.Content.ReadFromJsonAsync<DirectoryUserResponse>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal(doctorId, body.UserId);
         Assert.Equal("Dra. Helena Campos", body.Name);
@@ -145,7 +145,7 @@ public class DirectoryEndpointsTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        List<DoctorDirectoryItemResponse>? body = await response.Content.ReadFromJsonAsync<List<DoctorDirectoryItemResponse>>();
+        List<DoctorDirectoryItemResponse>? body = await response.Content.ReadFromJsonAsync<List<DoctorDirectoryItemResponse>>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Single(body);
         Assert.Equal(cardiologistId, body[0].UserId);

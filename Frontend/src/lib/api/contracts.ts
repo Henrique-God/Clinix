@@ -18,6 +18,7 @@ export interface CurrentUserProfile {
   userType?: AppUserType | number | null;
   isActive?: boolean | null;
   professionalRegister?: string | null;
+  phone?: string | null;
   specialties?: string[];
 }
 
@@ -34,6 +35,13 @@ export interface RegisterDoctorRequest {
   email: string;
   phone: string;
   password: string;
+}
+
+export interface UpdateDoctorProfileRequest {
+  name: string;
+  professionalRegister: string;
+  specialties: string[];
+  phone: string;
 }
 
 export interface DirectoryUser {
@@ -73,6 +81,7 @@ export interface ResolvedCurrentUserProfile {
   userType: AppUserType;
   isActive: boolean;
   professionalRegister?: string | null;
+  phone?: string | null;
   specialties: string[];
 }
 
@@ -114,6 +123,7 @@ export function resolveCurrentUserProfile(
     userType,
     isActive: input.isActive ?? true,
     professionalRegister: input.professionalRegister ?? null,
+    phone: input.phone ?? null,
     specialties: input.specialties ?? [],
   };
 }

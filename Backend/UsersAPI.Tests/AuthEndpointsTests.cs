@@ -1,5 +1,6 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using UsersAPI.Models;
 using UsersAPI.Models.DTOs;
 using UsersAPI.Services;
@@ -45,7 +46,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        LoginResponseDTO? body = await response.Content.ReadFromJsonAsync<LoginResponseDTO>();
+        LoginResponseDTO? body = await response.Content.ReadFromJsonAsync<LoginResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal($"test-token-{user.Id}", body.Token);
         Assert.Equal(UserType.User, body.UserType);
@@ -106,7 +107,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     {
         await factory.ResetDatabaseAsync();
         User user = BuildUser(UserType.User, "new-patient@clinix.local");
-        factory.FakeUserService.RegisterPatientAsyncHandler = request =>
+        factory.FakeUserService.RegisterPatientAsyncHandler = _ =>
             Task.FromResult(new UserRegistrationResult
             {
                 User = user,
@@ -147,7 +148,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     {
         await factory.ResetDatabaseAsync();
         User user = BuildUser(UserType.Doctor, "doctor@clinix.local");
-        factory.FakeUserService.RegisterDoctorAsyncHandler = request =>
+        factory.FakeUserService.RegisterDoctorAsyncHandler = _ =>
             Task.FromResult(new UserRegistrationResult
             {
                 User = user,
@@ -245,7 +246,7 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     public async Task RegisterLegacyReturnsBadRequestWhenEmailAlreadyExists()
     {
         await factory.ResetDatabaseAsync();
-        factory.FakeUserService.RegisterPatientAsyncHandler = request =>
+        factory.FakeUserService.RegisterPatientAsyncHandler = _ =>
             Task.FromResult(new UserRegistrationResult
             {
                 Error = UserRegistrationError.EmailAlreadyRegistered
@@ -277,10 +278,109 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        MeResponse? body = await response.Content.ReadFromJsonAsync<MeResponse>();
+        MeResponse? body = await response.Content.ReadFromJsonAsync<MeResponse>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal(userId.ToString(), body.UserId);
         Assert.Equal("me@clinix.local", body.Email);
+    }
+
+    [Fact]
+    public async Task MeReturnsDoctorProfileDataWhenDoctorExists()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+
+        await factory.SeedAsync(context =>
+        {
+            context.Users.Add(new User
+            {
+                Id = doctorId,
+                Email = "doctor-profile@clinix.local",
+                Name = "Dra. Perfil",
+                PasswordHash = "hashed",
+                UserType = UserType.Doctor,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            context.DoctorProfiles.Add(new DoctorProfile
+            {
+                UserId = doctorId,
+                ProfessionalRegister = "CRM777",
+                NormalizedProfessionalRegister = "CRM777",
+                Phone = "11912345678",
+                Specialties = JsonSerializer.Serialize(new[] { "Cardiologia" }),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            return Task.CompletedTask;
+        });
+
+        using HttpClient client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-UserId", doctorId.ToString());
+        client.DefaultRequestHeaders.Add("X-Test-Email", "doctor-profile@clinix.local");
+        client.DefaultRequestHeaders.Add("X-Test-Role", "Doctor");
+
+        HttpResponseMessage response = await client.GetAsync("/auth/me");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        MeResponse? body = await response.Content.ReadFromJsonAsync<MeResponse>(TestJson.SerializerOptions);
+        Assert.NotNull(body);
+        Assert.Equal("CRM777", body.ProfessionalRegister);
+        Assert.Equal("11912345678", body.Phone);
+        Assert.Contains("Cardiologia", body.Specialties);
+    }
+
+    [Fact]
+    public async Task UpdateDoctorProfileReturnsUpdatedDoctorData()
+    {
+        await factory.ResetDatabaseAsync();
+        Guid doctorId = Guid.NewGuid();
+
+        await factory.SeedAsync(context =>
+        {
+            context.Users.Add(new User
+            {
+                Id = doctorId,
+                Email = "update-doctor@clinix.local",
+                Name = "Dr. Inicial",
+                PasswordHash = "hashed",
+                UserType = UserType.Doctor,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            context.DoctorProfiles.Add(new DoctorProfile
+            {
+                UserId = doctorId,
+                ProfessionalRegister = "CRM100",
+                NormalizedProfessionalRegister = "CRM100",
+                Phone = "11911111111",
+                Specialties = JsonSerializer.Serialize(new[] { "Clinica Geral" }),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            return Task.CompletedTask;
+        });
+
+        using HttpClient client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-UserId", doctorId.ToString());
+        client.DefaultRequestHeaders.Add("X-Test-Email", "update-doctor@clinix.local");
+        client.DefaultRequestHeaders.Add("X-Test-Role", "Doctor");
+
+        HttpResponseMessage response = await client.PutAsJsonAsync("/auth/me/doctor-profile", new UpdateDoctorProfileRequestDTO
+        {
+            Name = "Dra. Atualizada",
+            ProfessionalRegister = "CRM200",
+            Phone = "11999998888",
+            Specialties = ["Cardiologia", "Clinica Geral"]
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        MeResponse? body = await response.Content.ReadFromJsonAsync<MeResponse>(TestJson.SerializerOptions);
+        Assert.NotNull(body);
+        Assert.Equal("Dra. Atualizada", body.Name);
+        Assert.Equal("CRM200", body.ProfessionalRegister);
+        Assert.Equal("11999998888", body.Phone);
+        Assert.Contains("Cardiologia", body.Specialties);
     }
 
     [Fact]
@@ -309,6 +409,9 @@ public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory>
     {
         public string UserId { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? Name { get; set; }
+        public string? ProfessionalRegister { get; set; }
+        public string? Phone { get; set; }
+        public IReadOnlyCollection<string> Specialties { get; set; } = Array.Empty<string>();
     }
 }
-

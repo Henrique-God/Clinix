@@ -22,6 +22,8 @@ function getItemClassName(variant: WeeklyCalendarItem["variant"], selected: bool
       ? "border-emerald-200 bg-emerald-100/80 text-emerald-900"
       : variant === "availability-private"
         ? "border-slate-300 bg-slate-200/80 text-slate-700"
+        : variant === "appointment-pending"
+          ? "border-amber-300 bg-amber-100 text-amber-900"
         : variant === "appointment-completed"
           ? "border-sky-200 bg-sky-100 text-sky-900"
           : variant === "appointment-active"

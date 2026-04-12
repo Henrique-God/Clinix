@@ -101,7 +101,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        ClinicalRecordSummaryDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordSummaryDTO>();
+        ClinicalRecordSummaryDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordSummaryDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal(patientId, body.PatientId);
     }
@@ -236,7 +236,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        List<ClinicalRecordEntryResponseDTO>? body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordEntryResponseDTO>>();
+        List<ClinicalRecordEntryResponseDTO>? body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordEntryResponseDTO>>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Single(body);
         Assert.Equal("Retorno", body[0].Title);
@@ -281,7 +281,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/entries/{entryId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
+        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal(entryId, body.Id);
     }
@@ -388,7 +388,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
+        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal("Queixa principal", body.Title);
     }
@@ -437,7 +437,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>();
+        ClinicalRecordEntryResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordEntryResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal("Atualizado", body.Title);
         Assert.False(body.IsVisibleToPatient);
@@ -549,7 +549,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         HttpResponseMessage response = await client.PostAsync($"/patients/{patientId}/clinical-record/entries/{entryId}/documents", content);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        ClinicalDocumentResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalDocumentResponseDTO>();
+        ClinicalDocumentResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalDocumentResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal("pedido.pdf", body.FileName);
         Assert.Single(factory.FakeS3StorageService.Objects);
@@ -729,7 +729,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         HttpResponseMessage response = await client.GetAsync($"/patients/{patientId}/clinical-record/access-grants");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        List<ClinicalRecordAccessGrantResponseDTO>? body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordAccessGrantResponseDTO>>();
+        List<ClinicalRecordAccessGrantResponseDTO>? body = await response.Content.ReadFromJsonAsync<List<ClinicalRecordAccessGrantResponseDTO>>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Single(body);
     }
@@ -752,7 +752,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        ClinicalRecordAccessGrantResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>();
+        ClinicalRecordAccessGrantResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal(doctorId, body.DoctorId);
     }
@@ -785,7 +785,7 @@ public class ClinicalRecordEndpointsTests : IClassFixture<CustomWebApplicationFa
         HttpResponseMessage response = await client.PatchAsync($"/patients/{patientId}/clinical-record/access-grants/{grantId}/revoke", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        ClinicalRecordAccessGrantResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>();
+        ClinicalRecordAccessGrantResponseDTO? body = await response.Content.ReadFromJsonAsync<ClinicalRecordAccessGrantResponseDTO>(TestJson.SerializerOptions);
         Assert.NotNull(body);
         Assert.Equal(ClinicalRecordAccessGrantStatus.Revoked, body.Status);
     }

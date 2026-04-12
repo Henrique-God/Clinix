@@ -63,7 +63,7 @@ describe("doctor schedule helpers", () => {
           endTime: "2026-04-14T10:30:00.000Z",
           blocksScheduling: true,
           appointmentId: "appointment-1",
-          appointmentStatus: "Accepted",
+          appointmentStatus: "PendingAcceptance",
           createdAt: "2026-04-10T00:00:00.000Z",
           updatedAt: "2026-04-10T00:00:00.000Z",
         },
@@ -88,7 +88,8 @@ describe("doctor schedule helpers", () => {
     });
     expect(items[1]).toMatchObject({
       source: "calendar-event",
-      variant: "appointment-active",
+      variant: "appointment-pending",
+      appointmentId: "appointment-1",
     });
     expect(items[2]).toMatchObject({
       source: "calendar-event",

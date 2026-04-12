@@ -40,9 +40,13 @@ export default function ProntuariosMedico() {
 
   const records = useMemo(() => {
     return Object.values(patientsQuery.data ?? {}).map((patient) => {
-      const patientAppointments = (appointmentsQuery.data ?? []).filter(
-        (appointment) => appointment.patientId === patient.userId,
-      );
+      const patientAppointments = (appointmentsQuery.data ?? []).filter((appointment) => {
+        const status = resolveAppointmentStatus(appointment.status);
+        return (
+          appointment.patientId === patient.userId &&
+          (status === "Accepted" || status === "Completed")
+        );
+      });
       const completedCount = patientAppointments.filter(
         (appointment) => resolveAppointmentStatus(appointment.status) === "Completed",
       ).length;
@@ -55,7 +59,7 @@ export default function ProntuariosMedico() {
         completedCount,
         latestAppointment,
       };
-    });
+    }).filter((record) => record.completedCount > 0 || Boolean(record.latestAppointment));
   }, [appointmentsQuery.data, patientsQuery.data]);
 
   const filteredRecords = useMemo(() => {

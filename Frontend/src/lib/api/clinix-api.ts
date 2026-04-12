@@ -8,6 +8,7 @@ import {
   LoginResponse,
   RegisterDoctorRequest,
   RegisterPatientRequest,
+  UpdateDoctorProfileRequest,
 } from "./contracts";
 import {
   AgendaEvent,
@@ -148,6 +149,14 @@ export const usersApi = {
     return requestJson<CurrentUserProfile>(apiConfig.usersApiUrl, "/auth/me", {
       method: "GET",
       token,
+    });
+  },
+
+  updateDoctorProfile(token: string, payload: UpdateDoctorProfileRequest) {
+    return requestJson<CurrentUserProfile>(apiConfig.usersApiUrl, "/auth/me/doctor-profile", {
+      method: "PUT",
+      token,
+      body: payload,
     });
   },
 

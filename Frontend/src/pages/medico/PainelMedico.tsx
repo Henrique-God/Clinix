@@ -1,13 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addDays, format, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar,
+  Check,
   ChevronLeft,
   ChevronRight,
   Plus,
   Users,
+  X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { WeeklyCalendar } from "@/components/schedule/WeeklyCalendar";
@@ -28,11 +30,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { appointmentsApi } from "@/lib/api/clinix-api";
 import {
+  Appointment,
+  Availability,
   getAppointmentStatusLabel,
   getInitials,
+  resolveAppointmentParticipantRole,
   resolveAppointmentStatus,
 } from "@/lib/api/domain";
 import {
+  WeeklyCalendarItem,
   buildDoctorWeekDays,
   buildIsoRangeForDate,
   buildWeeklyCalendarItems,
@@ -40,6 +46,42 @@ import {
 } from "@/lib/doctor-schedule";
 import { formatTimeLabel } from "@/lib/date-utils";
 import { loadDirectoryUsers } from "@/lib/directory";
+
+function overlaps(startA: string, endA: string, startB: string, endB: string) {
+  return startA < endB && endA > startB;
+}
+
+function isAppointmentCoveredByAvailability(appointment: Appointment, availabilities: Availability[]) {
+  return availabilities.some((availability) => {
+    return (
+      availability.startTime <= appointment.startTime &&
+      availability.endTime >= appointment.endTime
+    );
+  });
+}
+
+function hasCalendarConflict(appointment: Appointment, calendarItems: WeeklyCalendarItem[]) {
+  return calendarItems.some((item) => {
+    if (item.source !== "calendar-event") {
+      return false;
+    }
+
+    if (item.appointmentId === appointment.id) {
+      return false;
+    }
+
+    if (item.variant === "appointment-completed") {
+      return false;
+    }
+
+    return overlaps(
+      appointment.startTime,
+      appointment.endTime,
+      item.startTime,
+      item.endTime,
+    );
+  });
+}
 
 export default function PainelMedico() {
   const navigate = useNavigate();
@@ -49,6 +91,7 @@ export default function PainelMedico() {
   const [weekStart, setWeekStart] = useState(getDoctorWeekStart(new Date()));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCalendarItemId, setSelectedCalendarItemId] = useState<string | null>(null);
+  const [focusedAppointmentId, setFocusedAppointmentId] = useState<string | null>(null);
   const [blockForm, setBlockForm] = useState({
     title: "Horario bloqueado",
     description: "",
@@ -69,6 +112,16 @@ export default function PainelMedico() {
     queryKey: ["appointments", "calendar", profile?.userId, weekStart.toISOString()],
     queryFn: () =>
       appointmentsApi.getCalendar(session!.token, profile!.userId, {
+        fromUtc: weekStart.toISOString(),
+        toUtc: addDays(weekStart, 7).toISOString(),
+      }),
+    enabled: Boolean(session?.token && profile?.userId),
+  });
+
+  const availabilityQuery = useQuery({
+    queryKey: ["appointments", "availability", "dashboard", profile?.userId, weekStart.toISOString()],
+    queryFn: () =>
+      appointmentsApi.getAvailability(session!.token, profile!.userId, {
         fromUtc: weekStart.toISOString(),
         toUtc: addDays(weekStart, 7).toISOString(),
       }),
@@ -124,6 +177,38 @@ export default function PainelMedico() {
     },
   });
 
+  const respondInviteMutation = useMutation({
+    mutationFn: async ({
+      appointmentId,
+      action,
+    }: {
+      appointmentId: string;
+      action: "accept" | "reject";
+    }) => {
+      if (action === "accept") {
+        return appointmentsApi.acceptAppointment(session!.token, appointmentId);
+      }
+
+      return appointmentsApi.rejectAppointment(session!.token, appointmentId);
+    },
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["appointments", "doctor"] });
+      await queryClient.invalidateQueries({ queryKey: ["appointments", "calendar"] });
+      toast({
+        title: variables.action === "accept" ? "Convite aceito" : "Convite recusado",
+        description: "A agenda foi sincronizada com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Nao foi possivel responder ao convite",
+        description:
+          error instanceof Error ? error.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const completeAppointmentMutation = useMutation({
     mutationFn: (appointmentId: string) =>
       appointmentsApi.completeAppointment(session!.token, appointmentId, {
@@ -148,6 +233,25 @@ export default function PainelMedico() {
   });
 
   const appointments = useMemo(() => appointmentsQuery.data ?? [], [appointmentsQuery.data]);
+  const availabilities = useMemo(() => availabilityQuery.data ?? [], [availabilityQuery.data]);
+  const weeklyCalendarItems = useMemo(
+    () => buildWeeklyCalendarItems(availabilities, calendarQuery.data ?? []),
+    [availabilities, calendarQuery.data],
+  );
+
+  const pendingInvites = useMemo(
+    () =>
+      appointments
+        .filter((appointment) => {
+          return (
+            resolveAppointmentStatus(appointment.status) === "PendingAcceptance" &&
+            resolveAppointmentParticipantRole(appointment.invitedByRole) === "Patient"
+          );
+        })
+        .sort((left, right) => left.startTime.localeCompare(right.startTime)),
+    [appointments],
+  );
+
   const todayAppointments = useMemo(
     () =>
       appointments.filter((appointment) => {
@@ -160,14 +264,13 @@ export default function PainelMedico() {
     [appointments],
   );
 
-  const weeklyCalendarItems = useMemo(
-    () => buildWeeklyCalendarItems([], calendarQuery.data ?? []),
-    [calendarQuery.data],
-  );
-
   const selectedCalendarItem =
     weeklyCalendarItems.find((item) => item.id === selectedCalendarItemId) ??
     weeklyCalendarItems[0] ??
+    null;
+
+  const selectedPendingInvite =
+    pendingInvites.find((appointment) => appointment.id === selectedCalendarItem?.appointmentId) ??
     null;
 
   const uniquePatientsCount = new Set(appointments.map((appointment) => appointment.patientId)).size;
@@ -175,6 +278,26 @@ export default function PainelMedico() {
   function getPatientName(patientId: string) {
     return directoryUsersQuery.data?.[patientId]?.name ?? "Paciente";
   }
+
+  function focusAppointmentInCalendar(appointment: Appointment) {
+    const appointmentDate = parseISO(appointment.startTime);
+    setWeekStart(getDoctorWeekStart(appointmentDate));
+    setFocusedAppointmentId(appointment.id);
+  }
+
+  useEffect(() => {
+    if (!focusedAppointmentId) {
+      return;
+    }
+
+    const matchingItem = weeklyCalendarItems.find((item) => item.appointmentId === focusedAppointmentId);
+    if (!matchingItem) {
+      return;
+    }
+
+    setSelectedCalendarItemId(matchingItem.id);
+    setFocusedAppointmentId(null);
+  }, [focusedAppointmentId, weeklyCalendarItems]);
 
   function handleCreateBlockedSlot() {
     if (!blockForm.date || !blockForm.startTime || !blockForm.endTime || !blockForm.title.trim()) {
@@ -194,10 +317,10 @@ export default function PainelMedico() {
       <div className="animate-slide-up space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Ola, {profile?.name ?? "medico"}</h1>
-          <p className="text-muted-foreground">Resumo da sua agenda Clinix e das consultas do dia.</p>
+          <p className="text-muted-foreground">Resumo da sua agenda Clinix, convites pendentes e consultas do dia.</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -215,12 +338,26 @@ export default function PainelMedico() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
+                <div className="rounded-xl bg-warning/10 p-3">
+                  <Calendar className="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold">{pendingInvites.length}</p>
+                  <p className="text-sm text-muted-foreground">Pendentes de aceite</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
                 <div className="rounded-xl bg-info/10 p-3">
                   <Calendar className="h-6 w-6 text-info" />
                 </div>
                 <div>
                   <p className="text-3xl font-bold">{weeklyCalendarItems.length}</p>
-                  <p className="text-sm text-muted-foreground">Eventos nesta semana</p>
+                  <p className="text-sm text-muted-foreground">Blocos na semana</p>
                 </div>
               </div>
             </CardContent>
@@ -234,7 +371,7 @@ export default function PainelMedico() {
                 </div>
                 <div>
                   <p className="text-3xl font-bold">{uniquePatientsCount}</p>
-                  <p className="text-sm text-muted-foreground">Pacientes atendidos</p>
+                  <p className="text-sm text-muted-foreground">Pacientes na agenda</p>
                 </div>
               </div>
             </CardContent>
@@ -246,7 +383,7 @@ export default function PainelMedico() {
             <div>
               <CardTitle>Agenda semanal</CardTitle>
               <p className="text-sm text-muted-foreground">
-                A semana abre na segunda-feira. Quando o acesso ocorre no domingo, mostramos a proxima semana util.
+                Convites pendentes aparecem em destaque para facilitar a decisao. Disponibilidades ficam em verde e consultas confirmadas em azul.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -374,8 +511,132 @@ export default function PainelMedico() {
                     {selectedCalendarItem.subtitle}
                   </p>
                 ) : null}
+
+                {selectedPendingInvite ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button
+                      onClick={() =>
+                        respondInviteMutation.mutate({
+                          appointmentId: selectedPendingInvite.id,
+                          action: "accept",
+                        })
+                      }
+                      disabled={respondInviteMutation.isPending}
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      Aceitar convite
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        respondInviteMutation.mutate({
+                          appointmentId: selectedPendingInvite.id,
+                          action: "reject",
+                        })
+                      }
+                      disabled={respondInviteMutation.isPending}
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Recusar convite
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Convites pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pendingInvites.length > 0 ? (
+              <div className="space-y-3">
+                {pendingInvites.map((appointment) => {
+                  const coveredByAvailability = isAppointmentCoveredByAvailability(
+                    appointment,
+                    availabilities,
+                  );
+                  const conflictWithAgenda = hasCalendarConflict(
+                    appointment,
+                    weeklyCalendarItems,
+                  );
+
+                  return (
+                    <div
+                      key={appointment.id}
+                      className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4"
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold">{appointment.title}</p>
+                            <span className="status-badge bg-warning/10 text-warning">
+                              Aguardando sua resposta
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Paciente: {getPatientName(appointment.patientId)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(parseISO(appointment.startTime), "EEEE, d 'de' MMMM", {
+                              locale: ptBR,
+                            })}{" "}
+                            • {formatTimeLabel(appointment.startTime)} - {formatTimeLabel(appointment.endTime)}
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="status-badge bg-secondary text-foreground">
+                              {coveredByAvailability
+                                ? "Dentro da disponibilidade"
+                                : "Fora da disponibilidade atual"}
+                            </span>
+                            <span className="status-badge bg-secondary text-foreground">
+                              {conflictWithAgenda
+                                ? "Conflito com outro bloco"
+                                : "Sem conflito adicional"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => focusAppointmentInCalendar(appointment)}>
+                            Ver no calendario
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              respondInviteMutation.mutate({
+                                appointmentId: appointment.id,
+                                action: "reject",
+                              })
+                            }
+                            disabled={respondInviteMutation.isPending}
+                          >
+                            Recusar
+                          </Button>
+                          <Button
+                            onClick={() =>
+                              respondInviteMutation.mutate({
+                                appointmentId: appointment.id,
+                                action: "accept",
+                              })
+                            }
+                            disabled={respondInviteMutation.isPending}
+                          >
+                            Aceitar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                Nenhum convite pendente de aceite no momento.
+              </div>
+            )}
           </CardContent>
         </Card>
 

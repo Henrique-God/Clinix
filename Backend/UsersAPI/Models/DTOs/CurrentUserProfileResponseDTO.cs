@@ -10,5 +10,6 @@ public class CurrentUserProfileResponseDTO
     public UserType? UserType { get; set; }
     public bool? IsActive { get; set; }
     public string? ProfessionalRegister { get; set; }
+    public string? Phone { get; set; }
     public IReadOnlyCollection<string> Specialties { get; set; } = Array.Empty<string>();
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.Json;
+using Npgsql;
 using UsersAPI.Data;
 using UsersAPI.Models;
 using UsersAPI.Models.DTOs;
@@ -107,7 +108,67 @@ public class AuthController : ControllerBase
             return Ok(response);
 
         response.ProfessionalRegister = doctorProfile.ProfessionalRegister;
+        response.Phone = doctorProfile.Phone;
         response.Specialties = DeserializeSpecialties(doctorProfile.Specialties);
+
+        return Ok(response);
+    }
+
+    [Authorize(Roles = "Doctor")]
+    [HttpPut("me/doctor-profile")]
+    public async Task<IActionResult> UpdateDoctorProfile(
+        [FromBody] UpdateDoctorProfileRequestDTO request,
+        CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdValue, out Guid doctorId))
+            return Unauthorized();
+
+        User? user = await context.Users.FirstOrDefaultAsync(item => item.Id == doctorId, cancellationToken);
+        if (user is null || user.UserType != UserType.Doctor)
+            return NotFound("Doctor profile not found.");
+
+        DoctorProfile? doctorProfile = await context.DoctorProfiles
+            .FirstOrDefaultAsync(item => item.UserId == doctorId, cancellationToken);
+
+        if (doctorProfile is null)
+            return NotFound("Doctor profile not found.");
+
+        List<string> normalizedSpecialties = request.Specialties
+            .Select(item => item.Trim())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedSpecialties.Count == 0)
+            return BadRequest("At least one valid specialty is required.");
+
+        user.Name = request.Name.Trim();
+        doctorProfile.ProfessionalRegister = request.ProfessionalRegister.Trim();
+        doctorProfile.NormalizedProfessionalRegister = request.ProfessionalRegister.Trim().ToUpperInvariant();
+        doctorProfile.Specialties = JsonSerializer.Serialize(normalizedSpecialties);
+        doctorProfile.Phone = request.Phone.Trim();
+
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex, "IX_DoctorProfiles_NormalizedProfessionalRegister"))
+        {
+            return BadRequest("Professional register already registered.");
+        }
+
+        CurrentUserProfileResponseDTO response = new CurrentUserProfileResponseDTO
+        {
+            UserId = user.Id.ToString(),
+            Email = user.Email,
+            Name = user.Name,
+            UserType = user.UserType,
+            IsActive = user.IsActive,
+            ProfessionalRegister = doctorProfile.ProfessionalRegister,
+            Phone = doctorProfile.Phone,
+            Specialties = normalizedSpecialties
+        };
 
         return Ok(response);
     }
@@ -139,5 +200,14 @@ public class AuthController : ControllerBase
             return Array.Empty<string>();
 
         return JsonSerializer.Deserialize<List<string>>(serializedSpecialties) ?? new List<string>();
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException exception, string indexName)
+    {
+        if (exception.InnerException is not PostgresException postgresException)
+            return false;
+
+        return postgresException.SqlState == PostgresErrorCodes.UniqueViolation
+            && string.Equals(postgresException.ConstraintName, indexName, StringComparison.Ordinal);
     }
 }

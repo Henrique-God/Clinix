@@ -11,6 +11,7 @@ import {
 export type WeeklyCalendarItemVariant =
   | "availability-public"
   | "availability-private"
+  | "appointment-pending"
   | "appointment-active"
   | "appointment-completed"
   | "blocked";
@@ -23,6 +24,8 @@ export interface WeeklyCalendarItem {
   variant: WeeklyCalendarItemVariant;
   source: "availability" | "calendar-event";
   referenceId: string;
+  appointmentId?: string;
+  appointmentStatus?: string | null;
   subtitle?: string;
 }
 
@@ -107,13 +110,21 @@ export function buildWeeklyCalendarItems(
         startTime: event.startTime,
         endTime: event.endTime,
         variant:
-          appointmentStatus === "Completed"
+          appointmentStatus === "PendingAcceptance"
+            ? "appointment-pending"
+            : appointmentStatus === "Completed"
             ? "appointment-completed"
             : "appointment-active",
         source: "calendar-event",
         referenceId: event.id,
+        appointmentId: event.appointmentId ?? undefined,
+        appointmentStatus,
         subtitle:
-          appointmentStatus === "Completed" ? "Consulta concluida" : "Consulta agendada",
+          appointmentStatus === "PendingAcceptance"
+            ? "Convite aguardando resposta"
+            : appointmentStatus === "Completed"
+              ? "Consulta concluida"
+              : "Consulta agendada",
       };
     }
 

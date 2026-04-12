@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { appointmentsApi } from "@/lib/api/clinix-api";
-import { getInitials } from "@/lib/api/domain";
+import { getInitials, resolveAppointmentStatus } from "@/lib/api/domain";
 import { formatDateLabel } from "@/lib/date-utils";
 import { loadDirectoryUsers } from "@/lib/directory";
 
@@ -39,7 +39,10 @@ export default function ListaPacientes() {
   });
 
   const patients = useMemo(() => {
-    const appointments = appointmentsQuery.data ?? [];
+    const appointments = (appointmentsQuery.data ?? []).filter((appointment) => {
+      const status = resolveAppointmentStatus(appointment.status);
+      return status === "Accepted" || status === "Completed";
+    });
     const patientEntries = Object.values(patientsQuery.data ?? {});
 
     return patientEntries.map((patient) => {
@@ -52,7 +55,7 @@ export default function ListaPacientes() {
         totalAppointments: patientAppointments.length,
         latestAppointment: patientAppointments[0]?.startTime,
       };
-    });
+    }).filter((patient) => patient.totalAppointments > 0);
   }, [appointmentsQuery.data, patientsQuery.data]);
 
   const filteredPatients = useMemo(() => {
