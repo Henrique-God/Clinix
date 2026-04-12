@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import GestaoHorarios from "./pages/medico/GestaoHorarios";
 import ListaPacientes from "./pages/medico/ListaPacientes";
 import PainelMedico from "./pages/medico/PainelMedico";
+import PerfilMedico from "./pages/medico/PerfilMedico";
 import ProntuarioPaciente from "./pages/medico/ProntuarioPaciente";
 import ProntuariosMedico from "./pages/medico/ProntuariosMedico";
 import AssistenteVirtual from "./pages/paciente/AssistenteVirtual";
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/medico/pacientes" element={<ListaPacientes />} />
               <Route path="/medico/prontuarios" element={<ProntuariosMedico />} />
               <Route path="/medico/prontuario/:id" element={<ProntuarioPaciente />} />
+              <Route path="/medico/perfil" element={<PerfilMedico />} />
               <Route path="/medico/assistente" element={<AssistenteVirtual />} />
             </Route>
 
