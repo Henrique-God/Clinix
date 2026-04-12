@@ -16,15 +16,26 @@ import {
   AvailableSlot,
   Availability,
   ChatMessageResponse,
+  CheckoutSessionResponse,
   ClinicalRecordAccessGrant,
   ClinicalRecordAccessGrantCreateRequest,
   ClinicalRecordEntry,
   ClinicalRecordEntryCreateRequest,
   ClinicalRecordEntryUpdateRequest,
   ClinicalRecordSummary,
+  CreateWorkoutExerciseRequest,
+  CreateWorkoutRoutineRequest,
   DocumentIngestResponse,
   IngestionStatusResponse,
   ScheduleVisibility,
+  StravaActivityResponse,
+  StravaAuthUrlResponse,
+  StravaConnectionStatus,
+  StravaSyncResponse,
+  SubscriptionResponse,
+  UpdateWorkoutRoutineRequest,
+  WorkoutExercise,
+  WorkoutRoutine,
 } from "./domain";
 import { requestBlob, requestJson } from "./http";
 
@@ -572,6 +583,168 @@ export const clinicalRecordsApi = {
         method: "PATCH",
         token,
       },
+    );
+  },
+};
+
+export const subscriptionsApi = {
+  startTrial(token: string) {
+    return requestJson<SubscriptionResponse>(apiConfig.usersApiUrl, "/subscriptions/trial", {
+      method: "POST",
+      token,
+    });
+  },
+
+  getMySubscription(token: string) {
+    return requestJson<SubscriptionResponse | { status: string }>(
+      apiConfig.usersApiUrl,
+      "/subscriptions/me",
+      { method: "GET", token },
+    );
+  },
+
+  createCheckout(token: string, successUrl: string, cancelUrl: string) {
+    return requestJson<CheckoutSessionResponse>(apiConfig.usersApiUrl, "/subscriptions/checkout", {
+      method: "POST",
+      token,
+      body: { successUrl, cancelUrl },
+    });
+  },
+
+  cancel(token: string) {
+    return requestJson<{ message: string }>(apiConfig.usersApiUrl, "/subscriptions/cancel", {
+      method: "POST",
+      token,
+    });
+  },
+};
+
+export const workoutRoutinesApi = {
+  list(token: string) {
+    return requestJson<WorkoutRoutine[]>(apiConfig.usersApiUrl, "/workout-routines", {
+      method: "GET",
+      token,
+    });
+  },
+
+  get(token: string, id: string) {
+    return requestJson<WorkoutRoutine>(apiConfig.usersApiUrl, `/workout-routines/${id}`, {
+      method: "GET",
+      token,
+    });
+  },
+
+  create(token: string, payload: CreateWorkoutRoutineRequest) {
+    return requestJson<WorkoutRoutine>(apiConfig.usersApiUrl, "/workout-routines", {
+      method: "POST",
+      token,
+      body: payload,
+    });
+  },
+
+  update(token: string, id: string, payload: UpdateWorkoutRoutineRequest) {
+    return requestJson<WorkoutRoutine>(apiConfig.usersApiUrl, `/workout-routines/${id}`, {
+      method: "PUT",
+      token,
+      body: payload,
+    });
+  },
+
+  remove(token: string, id: string) {
+    return requestJson<void>(apiConfig.usersApiUrl, `/workout-routines/${id}`, {
+      method: "DELETE",
+      token,
+    });
+  },
+
+  addExercise(token: string, routineId: string, payload: CreateWorkoutExerciseRequest) {
+    return requestJson<WorkoutExercise>(
+      apiConfig.usersApiUrl,
+      `/workout-routines/${routineId}/exercises`,
+      { method: "POST", token, body: payload },
+    );
+  },
+
+  updateExercise(
+    token: string,
+    routineId: string,
+    exerciseId: string,
+    payload: CreateWorkoutExerciseRequest,
+  ) {
+    return requestJson<WorkoutExercise>(
+      apiConfig.usersApiUrl,
+      `/workout-routines/${routineId}/exercises/${exerciseId}`,
+      { method: "PUT", token, body: payload },
+    );
+  },
+
+  removeExercise(token: string, routineId: string, exerciseId: string) {
+    return requestJson<void>(
+      apiConfig.usersApiUrl,
+      `/workout-routines/${routineId}/exercises/${exerciseId}`,
+      { method: "DELETE", token },
+    );
+  },
+
+  listPatientRoutines(token: string, patientId: string) {
+    return requestJson<WorkoutRoutine[]>(
+      apiConfig.usersApiUrl,
+      `/patients/${patientId}/workout-routines`,
+      { method: "GET", token },
+    );
+  },
+};
+
+export const stravaApi = {
+  getAuthUrl(token: string) {
+    return requestJson<StravaAuthUrlResponse>(apiConfig.usersApiUrl, "/strava/auth-url", {
+      method: "GET",
+      token,
+    });
+  },
+
+  callback(token: string, code: string) {
+    return requestJson<StravaConnectionStatus>(apiConfig.usersApiUrl, "/strava/callback", {
+      method: "POST",
+      token,
+      body: { code },
+    });
+  },
+
+  getConnection(token: string) {
+    return requestJson<StravaConnectionStatus>(apiConfig.usersApiUrl, "/strava/connection", {
+      method: "GET",
+      token,
+    });
+  },
+
+  sync(token: string) {
+    return requestJson<StravaSyncResponse>(apiConfig.usersApiUrl, "/strava/sync", {
+      method: "POST",
+      token,
+    });
+  },
+
+  disconnect(token: string) {
+    return requestJson<void>(apiConfig.usersApiUrl, "/strava/connection", {
+      method: "DELETE",
+      token,
+    });
+  },
+
+  listActivities(token: string, page = 1, pageSize = 20) {
+    return requestJson<StravaActivityResponse[]>(
+      apiConfig.usersApiUrl,
+      `/strava/activities?page=${page}&pageSize=${pageSize}`,
+      { method: "GET", token },
+    );
+  },
+
+  listPatientActivities(token: string, patientId: string, page = 1, pageSize = 20) {
+    return requestJson<StravaActivityResponse[]>(
+      apiConfig.usersApiUrl,
+      `/patients/${patientId}/strava/activities?page=${page}&pageSize=${pageSize}`,
+      { method: "GET", token },
     );
   },
 };

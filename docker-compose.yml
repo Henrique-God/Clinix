@@ -19,6 +19,14 @@ services:
       Aws__S3BucketName: ${S3_BUCKET}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET}
+      Stripe__PriceId: ${STRIPE_PRICE_ID}
+      Stripe__TrialDays: ${STRIPE_TRIAL_DAYS:-14}
+      Strava__ClientId: ${STRAVA_CLIENT_ID}
+      Strava__ClientSecret: ${STRAVA_CLIENT_SECRET}
+      Strava__RedirectUri: ${STRAVA_REDIRECT_URI}
     restart: unless-stopped
 
   appointments-api:

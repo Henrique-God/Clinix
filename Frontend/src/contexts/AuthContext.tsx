@@ -5,7 +5,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { usersApi } from "@/lib/api/clinix-api";
+import { subscriptionsApi, usersApi } from "@/lib/api/clinix-api";
 import {
   AppUserType,
   AuthSession,
@@ -16,6 +16,7 @@ import {
   normalizeUserType,
   resolveCurrentUserProfile,
 } from "@/lib/api/contracts";
+import { SubscriptionResponse } from "@/lib/api/domain";
 import {
   clearStoredSession,
   persistSession,
@@ -29,6 +30,9 @@ interface AuthContextValue {
   session: AuthSession | null;
   profile: ResolvedCurrentUserProfile | null;
   isAuthenticated: boolean;
+  isPremium: boolean;
+  subscription: SubscriptionResponse | null;
+  refreshSubscription: () => Promise<void>;
   login: (email: string, password: string) => Promise<AuthSession>;
   registerPatient: (payload: RegisterPatientRequest) => Promise<AuthSession>;
   registerDoctor: (payload: RegisterDoctorRequest) => Promise<AuthSession>;
@@ -67,6 +71,14 @@ export function resolveHomePath(userType: AppUserType) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<AuthSession | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionResponse | null>(null);
+
+  const isPremium =
+    subscription != null &&
+    (subscription.status === "Trialing" ||
+      subscription.status === "Active" ||
+      subscription.status === 0 ||
+      subscription.status === 1);
 
   useEffect(() => {
     const storedSession = readStoredSession();
@@ -83,6 +95,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  async function loadSubscription(token: string) {
+    try {
+      const result = await subscriptionsApi.getMySubscription(token);
+      if ("id" in result) {
+        setSubscription(result as SubscriptionResponse);
+      } else {
+        setSubscription(null);
+      }
+    } catch {
+      setSubscription(null);
+    }
+  }
+
+  async function refreshSubscription() {
+    if (session?.token) {
+      await loadSubscription(session.token);
+    }
+  }
+
   async function hydrateSession(currentSession: AuthSession) {
     const profileResponse = await usersApi.getCurrentUser(currentSession.token);
     const resolvedProfile = resolveCurrentUserProfile(profileResponse);
@@ -95,6 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(nextSession);
     setStatus("authenticated");
 
+    if (nextSession.userType === "User") {
+      await loadSubscription(nextSession.token);
+    }
+
     return nextSession;
   }
 
@@ -106,6 +141,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistSession(nextSession);
     setSession(nextSession);
     setStatus("authenticated");
+
+    if (nextSession.userType === "User") {
+      await loadSubscription(nextSession.token);
+    }
 
     return nextSession;
   }
@@ -137,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     clearStoredSession();
     setSession(null);
+    setSubscription(null);
     setStatus("anonymous");
   }
 
@@ -147,6 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile: session?.profile ?? null,
         isAuthenticated: status === "authenticated",
+        isPremium,
+        subscription,
+        refreshSubscription,
         login,
         registerPatient,
         registerDoctor,

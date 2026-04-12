@@ -359,6 +359,192 @@ export function getClinicalEntryTypeLabel(type: ClinicalRecordEntryType | null) 
   }
 }
 
+export type SubscriptionPlan = "Free" | "Premium";
+export type SubscriptionStatus = "Trialing" | "Active" | "PastDue" | "Canceled" | "Expired";
+
+export interface SubscriptionResponse {
+  id: string;
+  plan: SubscriptionPlan | number;
+  status: SubscriptionStatus | number;
+  trialStartedAt?: string | null;
+  trialEndsAt?: string | null;
+  currentPeriodEnd?: string | null;
+  trialDaysRemaining?: number | null;
+  createdAt: string;
+}
+
+export interface CheckoutSessionResponse {
+  sessionUrl: string;
+}
+
+export interface WorkoutRoutine {
+  id: string;
+  name: string;
+  description?: string | null;
+  dayOfWeek?: number | string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  exercises: WorkoutExercise[];
+}
+
+export interface WorkoutExercise {
+  id: string;
+  name: string;
+  sets: number;
+  reps: number;
+  durationMinutes?: number | null;
+  restSeconds?: number | null;
+  notes?: string | null;
+  order: number;
+}
+
+export interface CreateWorkoutRoutineRequest {
+  name: string;
+  description?: string;
+  dayOfWeek?: number;
+}
+
+export interface UpdateWorkoutRoutineRequest {
+  name: string;
+  description?: string;
+  dayOfWeek?: number;
+  isActive: boolean;
+}
+
+export interface CreateWorkoutExerciseRequest {
+  name: string;
+  sets: number;
+  reps: number;
+  durationMinutes?: number;
+  restSeconds?: number;
+  notes?: string;
+  order: number;
+}
+
+export interface StravaConnectionResponse {
+  id: string;
+  stravaAthleteId: number;
+  isActive: boolean;
+  connectedAt: string;
+}
+
+export interface StravaConnectionStatus {
+  connected: boolean;
+  connection?: StravaConnectionResponse;
+}
+
+export interface StravaAuthUrlResponse {
+  authorizationUrl: string;
+}
+
+export interface StravaActivityResponse {
+  id: string;
+  stravaActivityId: number;
+  name: string;
+  type: string;
+  startDate: string;
+  distanceMeters: number;
+  movingTimeSeconds: number;
+  elapsedTimeSeconds: number;
+  totalElevationGain: number;
+  averageHeartRate?: number | null;
+  maxHeartRate?: number | null;
+  calories?: number | null;
+  syncedAt: string;
+}
+
+export interface StravaSyncResponse {
+  activitiesSynced: number;
+}
+
+const subscriptionStatusByNumber: Record<number, SubscriptionStatus> = {
+  0: "Trialing",
+  1: "Active",
+  2: "PastDue",
+  3: "Canceled",
+  4: "Expired",
+};
+
+export function resolveSubscriptionStatus(
+  value: SubscriptionStatus | number | null | undefined,
+) {
+  return normalizeEnumValue(value, subscriptionStatusByNumber);
+}
+
+export function getSubscriptionStatusLabel(status: SubscriptionStatus | null) {
+  switch (status) {
+    case "Trialing":
+      return "Periodo de teste";
+    case "Active":
+      return "Ativo";
+    case "PastDue":
+      return "Pagamento pendente";
+    case "Canceled":
+      return "Cancelado";
+    case "Expired":
+      return "Expirado";
+    default:
+      return "Sem assinatura";
+  }
+}
+
+const dayOfWeekLabelsByNumber: Record<number, string> = {
+  0: "Domingo",
+  1: "Segunda-feira",
+  2: "Terca-feira",
+  3: "Quarta-feira",
+  4: "Quinta-feira",
+  5: "Sexta-feira",
+  6: "Sabado",
+};
+
+const dayOfWeekLabelsByName: Record<string, string> = {
+  Sunday: "Domingo",
+  Monday: "Segunda-feira",
+  Tuesday: "Terca-feira",
+  Wednesday: "Quarta-feira",
+  Thursday: "Quinta-feira",
+  Friday: "Sexta-feira",
+  Saturday: "Sabado",
+};
+
+const dayOfWeekNameToNumber: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
+export function normalizeDayOfWeek(day: number | string | null | undefined): number | null {
+  if (day == null) return null;
+  if (typeof day === "number") return day;
+  return dayOfWeekNameToNumber[day] ?? null;
+}
+
+export function getDayOfWeekLabel(day: number | string | null | undefined) {
+  if (day == null) return "Qualquer dia";
+  if (typeof day === "number") return dayOfWeekLabelsByNumber[day] ?? "Desconhecido";
+  return dayOfWeekLabelsByName[day] ?? "Desconhecido";
+}
+
+export function formatDistance(meters: number) {
+  if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
+  return `${Math.round(meters)} m`;
+}
+
+export function formatDuration(seconds: number) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}min`;
+  if (m > 0) return `${m}min ${s}s`;
+  return `${s}s`;
+}
+
 export function getClinicalAccessGrantStatusLabel(
   status: ClinicalRecordAccessGrantStatus | null,
 ) {

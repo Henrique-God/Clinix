@@ -234,6 +234,158 @@ namespace UsersAPI.Migrations
                     b.ToTable("PatientClinicalRecords", "users");
                 });
 
+            modelBuilder.Entity("UsersAPI.Models.StravaActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("AverageHeartRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Calories")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DistanceMeters")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("ElapsedTimeSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("MaxHeartRate")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("MovingTimeSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("StravaActivityId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StravaConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("TotalElevationGain")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StravaActivityId")
+                        .IsUnique();
+
+                    b.HasIndex("StravaConnectionId");
+
+                    b.ToTable("StravaActivities", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.StravaConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccessToken")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTime>("ConnectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long>("StravaAthleteId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("TokenExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("StravaConnections", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CurrentPeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Plan")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StripeCustomerId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("StripeSubscriptionId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("TrialEndsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("TrialStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Subscriptions", "users");
+                });
+
             modelBuilder.Entity("UsersAPI.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -270,6 +422,86 @@ namespace UsersAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.WorkoutExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Reps")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RestSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Sets")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkoutRoutineId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkoutRoutineId");
+
+                    b.ToTable("WorkoutExercises", "users");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.WorkoutRoutine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DayOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WorkoutRoutines", "users");
                 });
 
             modelBuilder.Entity("UsersAPI.Models.ClinicalDocument", b =>
@@ -327,6 +559,51 @@ namespace UsersAPI.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("UsersAPI.Models.StravaActivity", b =>
+                {
+                    b.HasOne("UsersAPI.Models.StravaConnection", null)
+                        .WithMany("Activities")
+                        .HasForeignKey("StravaConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.StravaConnection", b =>
+                {
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("UsersAPI.Models.StravaConnection", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.Subscription", b =>
+                {
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("UsersAPI.Models.Subscription", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.WorkoutExercise", b =>
+                {
+                    b.HasOne("UsersAPI.Models.WorkoutRoutine", null)
+                        .WithMany("Exercises")
+                        .HasForeignKey("WorkoutRoutineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.WorkoutRoutine", b =>
+                {
+                    b.HasOne("UsersAPI.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("UsersAPI.Models.ClinicalRecordEntry", b =>
                 {
                     b.Navigation("Documents");
@@ -335,6 +612,16 @@ namespace UsersAPI.Migrations
             modelBuilder.Entity("UsersAPI.Models.PatientClinicalRecord", b =>
                 {
                     b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.StravaConnection", b =>
+                {
+                    b.Navigation("Activities");
+                });
+
+            modelBuilder.Entity("UsersAPI.Models.WorkoutRoutine", b =>
+                {
+                    b.Navigation("Exercises");
                 });
 #pragma warning restore 612, 618
         }
