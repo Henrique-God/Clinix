@@ -391,6 +391,7 @@ export const chatbotApi = {
       method: "POST",
       token,
       body: payload,
+      timeoutMs: 45000,
     });
   },
 
@@ -399,6 +400,7 @@ export const chatbotApi = {
       method: "POST",
       token,
       body: payload,
+      timeoutMs: 45000,
     });
   },
 
@@ -422,6 +424,7 @@ export const chatbotApi = {
       method: "POST",
       token,
       body,
+      timeoutMs: 45000,
     });
   },
 

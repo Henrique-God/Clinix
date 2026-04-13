@@ -44,6 +44,7 @@ def get_chatbot_service() -> ChatbotService:
     settings: Settings = get_settings()
     return ChatbotService(
         appointments_client=get_appointments_client(),
+        users_client=get_users_client(),
         rag_service=get_rag_service(),
         memory_store=get_chat_memory_store(),
         settings=settings,
