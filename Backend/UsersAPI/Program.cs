@@ -1,4 +1,5 @@
 using UsersAPI.Data;
+using UsersAPI.Infrastructure;
 using UsersAPI.Services;
 using Clinix.Shared.Auth;
 using Amazon;
@@ -15,6 +16,11 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IClinicalRecordAuthorizationService, ClinicalRecordAuthorizationService>();
 builder.Services.AddScoped<IS3StorageService, S3StorageService>();
+builder.Services.AddScoped<IStripeService, StripeService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IWorkoutRoutineService, WorkoutRoutineService>();
+builder.Services.AddScoped<PremiumAuthorizationFilter>();
+builder.Services.AddHttpClient<IStravaService, StravaService>();
 builder.Services.Configure<AppointmentsOptions>(builder.Configuration.GetSection(AppointmentsOptions.SectionName));
 builder.Services.AddHttpClient<IAppointmentRelationshipService, AppointmentRelationshipService>((sp, client) =>
 {

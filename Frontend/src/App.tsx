@@ -20,10 +20,15 @@ import PainelMedico from "./pages/medico/PainelMedico";
 import PerfilMedico from "./pages/medico/PerfilMedico";
 import ProntuarioPaciente from "./pages/medico/ProntuarioPaciente";
 import ProntuariosMedico from "./pages/medico/ProntuariosMedico";
+import Assinatura from "./pages/paciente/Assinatura";
 import AssistenteVirtual from "./pages/paciente/AssistenteVirtual";
 import DocumentosClinicos from "./pages/paciente/DocumentosClinicos";
 import MinhasConsultas from "./pages/paciente/MinhasConsultas";
 import Prontuario from "./pages/paciente/Prontuario";
+import RotinaTreinoDetalhe from "./pages/paciente/RotinaTreinoDetalhe";
+import RotinaTreinos from "./pages/paciente/RotinaTreinos";
+import StravaCallback from "./pages/paciente/StravaCallback";
+import StravaIntegration from "./pages/paciente/StravaIntegration";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +55,11 @@ const App = () => (
               <Route path="/paciente/prontuario" element={<Prontuario />} />
               <Route path="/paciente/documentos" element={<DocumentosClinicos />} />
               <Route path="/paciente/assistente" element={<AssistenteVirtual />} />
+              <Route path="/paciente/assinatura" element={<Assinatura />} />
+              <Route path="/paciente/treinos" element={<RotinaTreinos />} />
+              <Route path="/paciente/treinos/:id" element={<RotinaTreinoDetalhe />} />
+              <Route path="/paciente/strava" element={<StravaIntegration />} />
+              <Route path="/paciente/strava/callback" element={<StravaCallback />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedUserTypes={["Doctor"]} />}>

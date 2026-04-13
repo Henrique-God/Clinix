@@ -16,6 +16,11 @@ public class UsersDbContext : DbContext, IUsersDbContext
     public DbSet<ClinicalRecordEntry> ClinicalRecordEntries { get; set; }
     public DbSet<ClinicalDocument> ClinicalDocuments { get; set; }
     public DbSet<ClinicalRecordAccessGrant> ClinicalRecordAccessGrants { get; set; }
+    public DbSet<Subscription> Subscriptions { get; set; }
+    public DbSet<WorkoutRoutine> WorkoutRoutines { get; set; }
+    public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
+    public DbSet<StravaConnection> StravaConnections { get; set; }
+    public DbSet<StravaActivity> StravaActivities { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -101,6 +106,73 @@ public class UsersDbContext : DbContext, IUsersDbContext
                 .WithMany()
                 .HasForeignKey(e => e.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.Property(e => e.StripeCustomerId).HasMaxLength(256);
+            entity.Property(e => e.StripeSubscriptionId).HasMaxLength(256);
+
+            entity.HasOne<User>()
+                .WithOne()
+                .HasForeignKey<Subscription>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WorkoutRoutine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.Property(e => e.Name).HasMaxLength(256);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WorkoutExercise>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.WorkoutRoutineId);
+            entity.Property(e => e.Name).HasMaxLength(256);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+
+            entity.HasOne<WorkoutRoutine>()
+                .WithMany(e => e.Exercises)
+                .HasForeignKey(e => e.WorkoutRoutineId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StravaConnection>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.Property(e => e.AccessToken).HasMaxLength(1024);
+            entity.Property(e => e.RefreshToken).HasMaxLength(1024);
+            entity.Property(e => e.Scope).HasMaxLength(256);
+
+            entity.HasOne<User>()
+                .WithOne()
+                .HasForeignKey<StravaConnection>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StravaActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.StravaConnectionId);
+            entity.HasIndex(e => e.StravaActivityId).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(512);
+            entity.Property(e => e.Type).HasMaxLength(64);
+
+            entity.HasOne<StravaConnection>()
+                .WithMany(e => e.Activities)
+                .HasForeignKey(e => e.StravaConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

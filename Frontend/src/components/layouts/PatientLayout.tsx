@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Calendar, FileText, FolderOpen, LogOut, MessageSquare } from "lucide-react";
+import { Activity, Calendar, Crown, Dumbbell, FileText, FolderOpen, LogOut, MessageSquare } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -13,13 +13,16 @@ const menuItems = [
   { id: "consultas", label: "Agendamentos", icon: Calendar, path: "/paciente/consultas" },
   { id: "prontuario", label: "Prontuario", icon: FileText, path: "/paciente/prontuario" },
   { id: "documentos", label: "Documentos", icon: FolderOpen, path: "/paciente/documentos" },
+  { id: "treinos", label: "Treinos", icon: Dumbbell, path: "/paciente/treinos", premium: true },
+  { id: "strava", label: "Strava", icon: Activity, path: "/paciente/strava", premium: true },
   { id: "assistente", label: "Assistente", icon: MessageSquare, path: "/paciente/assistente" },
+  { id: "assinatura", label: "Assinatura", icon: Crown, path: "/paciente/assinatura" },
 ];
 
 export function PatientLayout({ children }: PatientLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout, profile } = useAuth();
+  const { logout, profile, isPremium } = useAuth();
 
   function handleLogout() {
     logout();
@@ -36,7 +39,8 @@ export function PatientLayout({ children }: PatientLayoutProps) {
             <nav className="hidden md:flex items-center gap-1">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+                const showPremiumBadge = "premium" in item && item.premium && !isPremium;
 
                 return (
                   <button
@@ -51,6 +55,7 @@ export function PatientLayout({ children }: PatientLayoutProps) {
                   >
                     <Icon className="w-4 h-4" />
                     {item.label}
+                    {showPremiumBadge && <Crown className="w-3 h-3 text-amber-500" />}
                   </button>
                 );
               })}
@@ -72,22 +77,22 @@ export function PatientLayout({ children }: PatientLayoutProps) {
           </div>
         </div>
 
-        <nav className="md:hidden flex border-t border-border">
+        <nav className="md:hidden flex border-t border-border overflow-x-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
 
             return (
               <button
                 key={item.id}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  "flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors",
+                  "flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors min-w-0",
                   isActive ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <Icon className="w-5 h-5" />
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
