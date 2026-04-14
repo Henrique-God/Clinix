@@ -162,8 +162,8 @@ export default function GestaoHorarios() {
   function handleCreateAvailability() {
     if (selectedDates.length === 0 || !formData.startTime || !formData.endTime) {
       toast({
-        title: "Campos obrigatorios",
-        description: "Selecione pelo menos uma data, horario inicial e horario final.",
+        title: "Campos obrigatórios",
+        description: "Selecione pelo menos uma data, horário inicial e horário final.",
         variant: "destructive",
       });
       return;
@@ -171,8 +171,8 @@ export default function GestaoHorarios() {
 
     if (formData.endTime <= formData.startTime) {
       toast({
-        title: "Intervalo invalido",
-        description: "O horario final precisa ser maior que o horario inicial.",
+        title: "Intervalo inválido",
+        description: "O horário final precisa ser maior que o horário inicial.",
         variant: "destructive",
       });
       return;

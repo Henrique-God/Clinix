@@ -15,6 +15,9 @@ public class RegisterRequestDTO
     public string Name { get; set; } = string.Empty;
 
     [System.ComponentModel.DataAnnotations.MaxLength(14)]
+    [System.ComponentModel.DataAnnotations.RegularExpression(
+        @"^(\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})$",
+        ErrorMessage = "CPF must be 11 digits or formatted as 000.000.000-00.")]
     public string? Cpf { get; set; }
 
     [System.ComponentModel.DataAnnotations.MaxLength(32)]

@@ -95,7 +95,7 @@ export default function PainelMedico() {
   const [focusedAppointmentId, setFocusedAppointmentId] = useState<string | null>(null);
   const [appointmentDialogItemId, setAppointmentDialogItemId] = useState<string | null>(null);
   const [blockForm, setBlockForm] = useState({
-    title: "HorÃ¡rio bloqueado",
+    title: "Horário bloqueado",
     description: "",
     date: format(new Date(), "yyyy-MM-dd"),
     startTime: "",
@@ -158,7 +158,7 @@ export default function PainelMedico() {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "calendar"] });
       setDialogOpen(false);
       setBlockForm({
-        title: "HorÃ¡rio bloqueado",
+        title: "Horário bloqueado",
         description: "",
         date: format(weekStart, "yyyy-MM-dd"),
         startTime: "",
@@ -166,12 +166,12 @@ export default function PainelMedico() {
       });
       toast({
         title: "Bloqueio criado",
-        description: "O perÃ­odo foi reservado na agenda do mÃ©dico.",
+        description: "O período foi reservado na agenda do médico.",
       });
     },
     onError: (error) => {
       toast({
-        title: "NÃ£o foi possÃ­vel bloquear o horÃ¡rio",
+        title: "Não foi possível bloquear o horário",
         description:
           error instanceof Error ? error.message : "Confira os dados e tente novamente.",
         variant: "destructive",
@@ -203,7 +203,7 @@ export default function PainelMedico() {
     },
     onError: (error) => {
       toast({
-        title: "NÃ£o foi possÃ­vel responder ao convite",
+        title: "Não foi possível responder ao convite",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -220,13 +220,13 @@ export default function PainelMedico() {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "doctor"] });
       await queryClient.invalidateQueries({ queryKey: ["appointments", "calendar"] });
       toast({
-        title: "Consulta concluÃ­da",
-        description: "A consulta foi marcada como concluÃ­da e a integraÃ§Ã£o clÃ­nica foi acionada.",
+        title: "Consulta concluída",
+        description: "A consulta foi marcada como concluída e a integração clínica foi acionada.",
       });
     },
     onError: (error) => {
       toast({
-        title: "NÃ£o foi possÃ­vel concluir a consulta",
+        title: "Não foi possível concluir a consulta",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -306,8 +306,8 @@ export default function PainelMedico() {
   function handleCreateBlockedSlot() {
     if (!blockForm.date || !blockForm.startTime || !blockForm.endTime || !blockForm.title.trim()) {
       toast({
-        title: "Campos obrigatÃ³rios",
-        description: "Informe data, horÃ¡rio inicial, final e tÃ­tulo do bloqueio.",
+        title: "Campos obrigatórios",
+        description: "Informe data, horário inicial, final e título do bloqueio.",
         variant: "destructive",
       });
       return;
@@ -328,7 +328,7 @@ export default function PainelMedico() {
     <DoctorLayout>
       <div className="animate-slide-up space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">OlÃ¡, {profile?.name ?? "mÃ©dico"}</h1>
+          <h1 className="text-2xl font-bold">Olá, {profile?.name ?? "médico"}</h1>
           <p className="text-muted-foreground">Resumo da sua agenda Clinix, convites pendentes e consultas do dia.</p>
         </div>
 
@@ -395,7 +395,7 @@ export default function PainelMedico() {
             <div>
               <CardTitle>Agenda semanal</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Convites pendentes aparecem em destaque para facilitar a decisÃ£o. Disponibilidades ficam em verde e consultas confirmadas em azul.
+                Convites pendentes aparecem em destaque para facilitar a decisão. Disponibilidades ficam em verde e consultas confirmadas em azul.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -406,7 +406,7 @@ export default function PainelMedico() {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    Bloquear horÃ¡rio
+                    Bloquear horário
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -415,7 +415,7 @@ export default function PainelMedico() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>TÃ­tulo</Label>
+                      <Label>Título</Label>
                       <Input
                         value={blockForm.title}
                         onChange={(event) =>
@@ -424,7 +424,7 @@ export default function PainelMedico() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>DescriÃ§Ã£o</Label>
+                      <Label>Descrição</Label>
                       <Textarea
                         value={blockForm.description}
                         onChange={(event) =>
@@ -447,7 +447,7 @@ export default function PainelMedico() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>InÃ­cio</Label>
+                        <Label>Início</Label>
                         <Input
                           type="time"
                           value={blockForm.startTime}
@@ -515,7 +515,7 @@ export default function PainelMedico() {
                   {format(parseISO(selectedCalendarItem.startTime), "EEEE, d 'de' MMMM", {
                     locale: ptBR,
                   })}{" "}
-                  â€¢ {formatTimeLabel(selectedCalendarItem.startTime)} -{" "}
+                  • {formatTimeLabel(selectedCalendarItem.startTime)} -{" "}
                   {formatTimeLabel(selectedCalendarItem.endTime)}
                 </p>
                 {selectedCalendarItem.subtitle ? (
@@ -595,7 +595,7 @@ export default function PainelMedico() {
                             {format(parseISO(appointment.startTime), "EEEE, d 'de' MMMM", {
                               locale: ptBR,
                             })}{" "}
-                            â€¢ {formatTimeLabel(appointment.startTime)} - {formatTimeLabel(appointment.endTime)}
+                            • {formatTimeLabel(appointment.startTime)} - {formatTimeLabel(appointment.endTime)}
                           </p>
                           <div className="flex flex-wrap gap-2 text-xs">
                             <span className="status-badge bg-secondary text-foreground">
@@ -681,7 +681,7 @@ export default function PainelMedico() {
                           <p className="font-medium">{getPatientName(appointment.patientId)}</p>
                           <p className="text-sm text-muted-foreground">{appointment.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            {formatTimeLabel(appointment.startTime)} â€¢ {getAppointmentStatusLabel(status)}
+                            {formatTimeLabel(appointment.startTime)} • {getAppointmentStatusLabel(status)}
                           </p>
                         </div>
                       </div>
@@ -726,7 +726,7 @@ export default function PainelMedico() {
             <DialogHeader>
               <DialogTitle>{selectedAppointmentForDialog?.title ?? "Detalhes da consulta"}</DialogTitle>
               <DialogDescription>
-                Confira as informaÃ§Ãµes principais desta consulta e acesse o prontuÃ¡rio do paciente.
+                Confira as informações principais desta consulta e acesse o prontuário do paciente.
               </DialogDescription>
             </DialogHeader>
 
@@ -741,9 +741,9 @@ export default function PainelMedico() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl bg-secondary/30 p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Data e horÃ¡rio</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Data e horário</p>
                     <p className="mt-1 font-medium">
-                      {formatDateTime(selectedAppointmentForDialog.startTime)} â€¢{" "}
+                      {formatDateTime(selectedAppointmentForDialog.startTime)} •{" "}
                       {formatTimeLabel(selectedAppointmentForDialog.endTime)}
                     </p>
                   </div>
@@ -766,7 +766,7 @@ export default function PainelMedico() {
 
                 {selectedAppointmentForDialog.description ? (
                   <div className="rounded-xl bg-secondary/30 p-4">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">ObservaÃ§Ãµes</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Observações</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {selectedAppointmentForDialog.description}
                     </p>
@@ -781,7 +781,7 @@ export default function PainelMedico() {
                       navigate(`/medico/prontuario/${selectedAppointmentForDialog.patientId}`);
                     }}
                   >
-                    Ir para o prontuÃ¡rio
+                    Ir para o prontuário
                   </Button>
                   {resolveAppointmentStatus(selectedAppointmentForDialog.status) === "PendingAcceptance" ? (
                     <>

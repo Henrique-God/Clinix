@@ -303,7 +303,7 @@ export default function ProntuarioPaciente() {
                           <SelectItem value="none">Não vincular agora</SelectItem>
                           {completedAppointments.map((appointment) => (
                             <SelectItem key={appointment.id} value={appointment.id}>
-                              {formatDateTime(appointment.startTime)} â€¢ {appointment.title}
+                              {formatDateTime(appointment.startTime)} • {appointment.title}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -389,7 +389,7 @@ export default function ProntuarioPaciente() {
                         ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {formatDateTime(entry.createdAt)} â€¢ Autor:{" "}
+                        {formatDateTime(entry.createdAt)} • Autor:{" "}
                         {entry.authorUserId === profile?.userId ? profile?.name : "Outro profissional"}
                       </p>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">
@@ -473,7 +473,7 @@ export default function ProntuarioPaciente() {
                       </Select>
                       {completedAppointments.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                          Ã‰ necessÃ¡rio vincular o documento a uma consulta concluÃ­da antes de salvÃ¡-lo.
+                          É necessário vincular o documento a uma consulta concluída antes de salvá-lo.
                         </p>
                       ) : null}
                     </div>
@@ -535,7 +535,7 @@ export default function ProntuarioPaciente() {
                       <div>
                         <h3 className="font-medium">{document.fileName}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {document.entryTitle} â€¢ {formatDateLabel(document.createdAt)}
+                          {document.entryTitle} • {formatDateLabel(document.createdAt)}
                         </p>
                       </div>
                       <Button

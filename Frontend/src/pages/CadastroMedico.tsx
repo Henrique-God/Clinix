@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { HEALTH_INSURANCE_PLANS } from "@/lib/health-insurance-plans";
 
 const especialidades = [
   "Cardiologia",
@@ -37,8 +38,10 @@ export default function CadastroMedico() {
     email: "",
     senha: "",
     confirmarSenha: "",
+    consultationPrice: "",
   });
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [selectedPlans, setSelectedPlans] = useState<string[]>([]);
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     setFormData({ ...formData, [event.target.name]: event.target.value });
@@ -76,6 +79,8 @@ export default function CadastroMedico() {
         .filter(Boolean)
         .join("/");
 
+      const priceValue = parseFloat(formData.consultationPrice);
+
       const session = await registerDoctor({
         name: formData.nome.trim(),
         professionalRegister,
@@ -83,6 +88,10 @@ export default function CadastroMedico() {
         email: formData.email.trim(),
         phone: formData.telefone.trim(),
         password: formData.senha,
+        consultationPriceCents: !isNaN(priceValue) && priceValue > 0
+          ? Math.round(priceValue * 100)
+          : undefined,
+        acceptedInsurancePlans: selectedPlans.length > 0 ? selectedPlans : undefined,
       });
 
       navigate(resolveHomePath(session.userType), { replace: true });
@@ -217,6 +226,63 @@ export default function CadastroMedico() {
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="consultationPrice">Preço da consulta particular (R$)</Label>
+                <Input
+                  id="consultationPrice"
+                  name="consultationPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ex: 250.00"
+                  value={formData.consultationPrice}
+                  onChange={handleChange}
+                  className="input-focus"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Planos de saúde aceitos (opcional)</Label>
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    if (!selectedPlans.includes(value)) {
+                      setSelectedPlans((prev) => [...prev, value]);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="input-focus">
+                    <SelectValue placeholder="Adicionar plano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HEALTH_INSURANCE_PLANS.filter((p) => !selectedPlans.includes(p)).map((plan) => (
+                      <SelectItem key={plan} value={plan}>
+                        {plan}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedPlans.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedPlans.map((plan) => (
+                      <Badge key={plan} variant="secondary" className="gap-1 pr-1">
+                        {plan}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlans((prev) => prev.filter((p) => p !== plan))}
+                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="telefone">Telefone profissional</Label>
@@ -277,7 +343,7 @@ export default function CadastroMedico() {
               <div className="bg-secondary/50 rounded-lg p-4 mt-4">
                 <p className="text-sm text-muted-foreground">
                   <strong>Próximo passo:</strong> após o cadastro, você poderá
-                  configurar seus horários de atendimento no painel.
+                  configurar seus horários de atendimento e ajustar suas informações no painel.
                 </p>
               </div>
 

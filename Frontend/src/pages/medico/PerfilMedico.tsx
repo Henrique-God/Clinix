@@ -58,7 +58,7 @@ export default function PerfilMedico() {
           .map((item) => item.trim())
           .filter(Boolean),
         consultationPriceCents: !isNaN(priceValue) ? Math.round(priceValue * 100) : null,
-        acceptedInsurancePlans: selectedPlans.length > 0 ? selectedPlans : undefined,
+        acceptedInsurancePlans: selectedPlans,
       });
     },
     onSuccess: async () => {
@@ -66,12 +66,12 @@ export default function PerfilMedico() {
       setDialogOpen(false);
       toast({
         title: "Perfil atualizado",
-        description: "Os dados do mÃ©dico foram salvos com sucesso.",
+        description: "Os dados do médico foram salvos com sucesso.",
       });
     },
     onError: (error) => {
       toast({
-        title: "NÃ£o foi possÃ­vel atualizar o perfil",
+        title: "Não foi possível atualizar o perfil",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -84,11 +84,11 @@ export default function PerfilMedico() {
       await refreshProfile();
       toast({
         title: "Perfil sincronizado",
-        description: "Os dados do mÃ©dico foram atualizados com sucesso.",
+        description: "Os dados do médico foram atualizados com sucesso.",
       });
     } catch (error) {
       toast({
-        title: "NÃ£o foi possÃ­vel atualizar o perfil",
+        title: "Não foi possível atualizar o perfil",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -247,9 +247,9 @@ export default function PerfilMedico() {
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <Card>
             <CardHeader>
-              <CardTitle>{profile?.name ?? "MÃ©dico"}</CardTitle>
+              <CardTitle>{profile?.name ?? "Médico"}</CardTitle>
               <CardDescription>
-                InformaÃ§Ãµes principais do profissional autenticado.
+                Informações principais do profissional autenticado.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

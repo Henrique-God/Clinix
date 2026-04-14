@@ -44,6 +44,8 @@ export interface RegisterDoctorRequest {
   email: string;
   phone: string;
   password: string;
+  consultationPriceCents?: number | null;
+  acceptedInsurancePlans?: string[];
 }
 
 export interface UpdateDoctorProfileRequest {
