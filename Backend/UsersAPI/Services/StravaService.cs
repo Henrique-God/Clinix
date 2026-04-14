@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using UsersAPI.Data;
 using UsersAPI.Models;
 
@@ -149,7 +150,6 @@ public class StravaService : IStravaService
             return 0;
 
         HashSet<long> existingIds = (await context.StravaActivities
-            .Where(a => a.StravaConnectionId == connection.Id)
             .Select(a => a.StravaActivityId)
             .ToListAsync())
             .ToHashSet();
@@ -183,7 +183,18 @@ public class StravaService : IStravaService
         }
 
         if (synced > 0)
-            await context.SaveChangesAsync();
+        {
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+                when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
+            {
+                context.ChangeTracker.Clear();
+                synced = 0;
+            }
+        }
 
         return synced;
     }
