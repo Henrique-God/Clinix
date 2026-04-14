@@ -85,6 +85,35 @@ public class DirectoryController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("patients")]
+    public async Task<IActionResult> GetPatients([FromQuery] PatientDirectoryQueryDTO query, CancellationToken cancellationToken)
+    {
+        IQueryable<User> patientsQuery = context.Users
+            .AsNoTracking()
+            .Where(item => item.UserType == UserType.User && item.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            string search = query.Search.Trim();
+            string normalizedSearch = search.ToLower();
+            patientsQuery = patientsQuery.Where(item =>
+                item.Name.ToLower().Contains(normalizedSearch) || item.Email.ToLower().Contains(normalizedSearch));
+        }
+
+        List<PatientDirectoryItemDTO> result = await patientsQuery
+            .OrderBy(item => item.Name)
+            .Take(query.Limit)
+            .Select(item => new PatientDirectoryItemDTO
+            {
+                UserId = item.Id,
+                Name = item.Name,
+                Email = item.Email
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(result);
+    }
+
     private static DirectoryUserResponseDTO MapDirectoryUser(User user, DoctorProfile? doctorProfile)
     {
         return new DirectoryUserResponseDTO

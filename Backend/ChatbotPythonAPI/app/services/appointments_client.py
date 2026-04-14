@@ -63,3 +63,25 @@ class AppointmentsClient:
             )
             response.raise_for_status()
             return dict(response.json())
+
+    async def get_available_slots(
+        self,
+        token: str,
+        doctor_id: str,
+        from_utc: str,
+        to_utc: str,
+        duration_minutes: int = 30,
+    ) -> list[dict[str, Any]]:
+        params = {
+            "FromUtc": from_utc,
+            "ToUtc": to_utc,
+            "DurationMinutes": duration_minutes,
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{self._base_url}/doctors/{doctor_id}/available-slots",
+                headers=self._auth_headers(token),
+                params=params,
+            )
+            response.raise_for_status()
+            return list(response.json())

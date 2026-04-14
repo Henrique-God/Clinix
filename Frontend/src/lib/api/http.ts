@@ -13,6 +13,65 @@ export class ApiError extends Error {
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: BodyInit | object | null;
   token?: string;
+  timeoutMs?: number;
+}
+
+const defaultRequestTimeoutMs = 15000;
+
+function buildRequestSignal(timeoutMs: number, externalSignal?: AbortSignal | null) {
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const abortFromExternalSignal = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener("abort", abortFromExternalSignal);
+    }
+  }
+
+  function cleanup() {
+    clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener("abort", abortFromExternalSignal);
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    didTimeout: () => timedOut,
+    cleanup,
+  };
+}
+
+function mapFetchError(error: unknown, didTimeout: boolean) {
+  if (error instanceof Error && error.name === "AbortError") {
+    if (didTimeout) {
+      return new ApiError(
+        "A requisicao demorou mais que o esperado. Tente novamente.",
+        408,
+        null,
+      );
+    }
+
+    return new ApiError("A requisicao foi cancelada.", 499, null);
+  }
+
+  if (error instanceof ApiError) {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return new ApiError(error.message, 0, null);
+  }
+
+  return new ApiError("Nao foi possivel concluir a requisicao.", 0, null);
 }
 
 export async function requestJson<TResponse>(
@@ -20,31 +79,48 @@ export async function requestJson<TResponse>(
   path: string,
   options: RequestOptions = {},
 ): Promise<TResponse> {
-  const headers = new Headers(options.headers);
+  const {
+    timeoutMs = defaultRequestTimeoutMs,
+    signal,
+    token,
+    body: requestBody,
+    headers: requestHeaders,
+    ...fetchOptions
+  } = options;
+  const headers = new Headers(requestHeaders);
 
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   let body: BodyInit | undefined;
   if (
-    options.body !== undefined &&
-    options.body !== null &&
-    !(options.body instanceof FormData) &&
-    !(options.body instanceof Blob) &&
-    typeof options.body !== "string"
+    requestBody !== undefined &&
+    requestBody !== null &&
+    !(requestBody instanceof FormData) &&
+    !(requestBody instanceof Blob) &&
+    typeof requestBody !== "string"
   ) {
     headers.set("Content-Type", "application/json");
-    body = JSON.stringify(options.body);
-  } else if (options.body !== null && options.body !== undefined) {
-    body = options.body as BodyInit;
+    body = JSON.stringify(requestBody);
+  } else if (requestBody !== null && requestBody !== undefined) {
+    body = requestBody as BodyInit;
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers,
-    body,
-  });
+  const requestSignal = buildRequestSignal(timeoutMs, signal);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...fetchOptions,
+      headers,
+      body,
+      signal: requestSignal.signal,
+    });
+  } catch (error) {
+    throw mapFetchError(error, requestSignal.didTimeout());
+  } finally {
+    requestSignal.cleanup();
+  }
 
   if (response.status === 204) {
     return undefined as TResponse;
@@ -76,16 +152,32 @@ export async function requestBlob(
   path: string,
   options: RequestOptions = {},
 ) {
-  const headers = new Headers(options.headers);
+  const {
+    timeoutMs = defaultRequestTimeoutMs,
+    signal,
+    token,
+    headers: requestHeaders,
+    ...fetchOptions
+  } = options;
+  const headers = new Headers(requestHeaders);
 
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers,
-  });
+  const requestSignal = buildRequestSignal(timeoutMs, signal);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...fetchOptions,
+      headers,
+      signal: requestSignal.signal,
+    });
+  } catch (error) {
+    throw mapFetchError(error, requestSignal.didTimeout());
+  } finally {
+    requestSignal.cleanup();
+  }
 
   if (!response.ok) {
     const errorPayload = await response.text();
