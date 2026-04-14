@@ -96,6 +96,10 @@ public class AuthController : ControllerBase
         response.Name = user.Name;
         response.UserType = user.UserType;
         response.IsActive = user.IsActive;
+        response.Cpf = user.Cpf;
+        response.Phone = user.Phone ?? response.Phone;
+        response.DateOfBirth = user.DateOfBirth;
+        response.HealthInsurance = user.HealthInsurance;
 
         if (user.UserType != UserType.Doctor)
             return Ok(response);
@@ -110,6 +114,8 @@ public class AuthController : ControllerBase
         response.ProfessionalRegister = doctorProfile.ProfessionalRegister;
         response.Phone = doctorProfile.Phone;
         response.Specialties = DeserializeSpecialties(doctorProfile.Specialties);
+        response.ConsultationPriceCents = doctorProfile.ConsultationPriceCents;
+        response.AcceptedInsurancePlans = DeserializeSpecialties(doctorProfile.AcceptedInsurancePlans ?? "");
 
         return Ok(response);
     }
@@ -148,6 +154,19 @@ public class AuthController : ControllerBase
         doctorProfile.NormalizedProfessionalRegister = request.ProfessionalRegister.Trim().ToUpperInvariant();
         doctorProfile.Specialties = JsonSerializer.Serialize(normalizedSpecialties);
         doctorProfile.Phone = request.Phone.Trim();
+        doctorProfile.ConsultationPriceCents = request.ConsultationPriceCents;
+
+        if (request.AcceptedInsurancePlans is not null)
+        {
+            List<string> normalizedPlans = request.AcceptedInsurancePlans
+                .Select(item => item.Trim())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            doctorProfile.AcceptedInsurancePlans = normalizedPlans.Count > 0
+                ? JsonSerializer.Serialize(normalizedPlans)
+                : null;
+        }
 
         try
         {
@@ -167,7 +186,9 @@ public class AuthController : ControllerBase
             IsActive = user.IsActive,
             ProfessionalRegister = doctorProfile.ProfessionalRegister,
             Phone = doctorProfile.Phone,
-            Specialties = normalizedSpecialties
+            Specialties = normalizedSpecialties,
+            ConsultationPriceCents = doctorProfile.ConsultationPriceCents,
+            AcceptedInsurancePlans = DeserializeSpecialties(doctorProfile.AcceptedInsurancePlans ?? "")
         };
 
         return Ok(response);

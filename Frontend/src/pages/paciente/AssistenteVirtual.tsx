@@ -327,6 +327,7 @@ export default function AssistenteVirtual() {
         message,
         patient_id: session?.userType === "User" ? profile?.userId : undefined,
         conversation_id: conversationId,
+        patient_insurance_plan: session?.userType === "User" ? (profile?.healthInsurance ?? null) : null,
       }),
     onSuccess: (response) => {
       const nextConversationId =

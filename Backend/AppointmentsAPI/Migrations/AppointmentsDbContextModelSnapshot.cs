@@ -209,6 +209,12 @@ namespace AppointmentsAPI.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AcceptsInsurance")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AcceptsPrivate")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -220,6 +226,10 @@ namespace AppointmentsAPI.Migrations
 
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InsurancePlans")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");

@@ -69,6 +69,11 @@ export function buildAvailabilityPayloads(
   startTime: string,
   endTime: string,
   visibility: "Public" | "Private",
+  options?: {
+    acceptsPrivate?: boolean;
+    acceptsInsurance?: boolean;
+    insurancePlans?: string[];
+  },
 ) {
   const uniqueDates = new Map<string, Date>();
 
@@ -82,6 +87,9 @@ export function buildAvailabilityPayloads(
       startTime: buildIsoRangeForDate(date, startTime),
       endTime: buildIsoRangeForDate(date, endTime),
       visibility,
+      acceptsPrivate: options?.acceptsPrivate,
+      acceptsInsurance: options?.acceptsInsurance,
+      insurancePlans: options?.insurancePlans,
     }));
 }
 
@@ -115,46 +123,56 @@ export function buildWeeklyCalendarItems(
     }));
   });
 
-  const calendarItems = agendaEvents.map<WeeklyCalendarItem>((event) => {
-    const eventType = resolveAgendaEventType(event.type);
-    const appointmentStatus = resolveAppointmentStatus(event.appointmentStatus);
+  const calendarItems = agendaEvents
+    .map<WeeklyCalendarItem | null>((event) => {
+      const eventType = resolveAgendaEventType(event.type);
+      const appointmentStatus = resolveAppointmentStatus(event.appointmentStatus);
 
-    if (eventType === "Appointment") {
+      if (eventType === "Appointment") {
+        if (
+          appointmentStatus === "CancelledByPatient" ||
+          appointmentStatus === "CancelledByDoctor" ||
+          appointmentStatus === "Rejected"
+        ) {
+          return null;
+        }
+
+        return {
+          id: `event-${event.id}`,
+          title: event.title,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          variant:
+            appointmentStatus === "PendingAcceptance"
+              ? "appointment-pending"
+              : appointmentStatus === "Completed"
+              ? "appointment-completed"
+              : "appointment-active",
+          source: "calendar-event",
+          referenceId: event.id,
+          appointmentId: event.appointmentId ?? undefined,
+          appointmentStatus,
+          subtitle:
+            appointmentStatus === "PendingAcceptance"
+              ? "Convite aguardando resposta"
+              : appointmentStatus === "Completed"
+                ? "Consulta concluída"
+                : "Consulta agendada",
+        };
+      }
+
       return {
         id: `event-${event.id}`,
         title: event.title,
         startTime: event.startTime,
         endTime: event.endTime,
-        variant:
-          appointmentStatus === "PendingAcceptance"
-            ? "appointment-pending"
-            : appointmentStatus === "Completed"
-            ? "appointment-completed"
-            : "appointment-active",
+        variant: "blocked",
         source: "calendar-event",
         referenceId: event.id,
-        appointmentId: event.appointmentId ?? undefined,
-        appointmentStatus,
-        subtitle:
-          appointmentStatus === "PendingAcceptance"
-            ? "Convite aguardando resposta"
-            : appointmentStatus === "Completed"
-              ? "Consulta concluída"
-              : "Consulta agendada",
+        subtitle: "Bloqueio da agenda",
       };
-    }
-
-    return {
-      id: `event-${event.id}`,
-      title: event.title,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      variant: "blocked",
-      source: "calendar-event",
-      referenceId: event.id,
-      subtitle: "Bloqueio da agenda",
-    };
-  });
+    })
+    .filter((item): item is WeeklyCalendarItem => item !== null);
 
   return [...availabilityItems, ...calendarItems].sort((left, right) =>
     left.startTime.localeCompare(right.startTime),

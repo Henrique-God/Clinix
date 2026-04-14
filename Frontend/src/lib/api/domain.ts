@@ -21,7 +21,7 @@ export type AgendaEventType =
   | "ExternalEvent"
   | "BlockedSlot"
   | "PersonalEvent";
-export type ClinicalRecordEntryType = "Anamnesis" | "Document";
+export type ClinicalRecordEntryType = "Anamnesis" | "Document" | "Prescription" | "MedicalOrder";
 export type ClinicalRecordEntryAuthorType = "Patient" | "Doctor";
 export type ClinicalRecordAccessGrantStatus = "Active" | "Revoked" | "Expired";
 export type ChatIntent =
@@ -72,6 +72,9 @@ export interface Availability {
   startTime: string;
   endTime: string;
   visibility: ScheduleVisibility | number;
+  acceptsPrivate: boolean;
+  acceptsInsurance: boolean;
+  insurancePlans: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +84,10 @@ export interface AvailableSlot {
   availabilityId: string;
   startTime: string;
   endTime: string;
+  acceptsPrivate: boolean;
+  acceptsInsurance: boolean;
+  insurancePlans: string[];
+  consultationPriceCents?: number | null;
 }
 
 export interface AgendaEvent {
@@ -212,8 +219,10 @@ const agendaEventTypeByNumber: Record<number, AgendaEventType> = {
 };
 
 const clinicalEntryTypeByNumber: Record<number, ClinicalRecordEntryType> = {
-  1: "Anamnesis",
-  2: "Document",
+  0: "Anamnesis",
+  1: "Document",
+  2: "Prescription",
+  3: "MedicalOrder",
 };
 
 const clinicalEntryAuthorTypeByNumber: Record<number, ClinicalRecordEntryAuthorType> = {
@@ -351,9 +360,13 @@ export function getAppointmentStatusLabel(status: AppointmentStatus | null) {
 export function getClinicalEntryTypeLabel(type: ClinicalRecordEntryType | null) {
   switch (type) {
     case "Anamnesis":
-      return "Evolucao clinica";
+      return "Evolução clínica";
     case "Document":
       return "Documento";
+    case "Prescription":
+      return "Receita";
+    case "MedicalOrder":
+      return "Pedido médico";
     default:
       return "Registro";
   }

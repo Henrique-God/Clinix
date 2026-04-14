@@ -43,6 +43,7 @@ export default function ProntuarioPaciente() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [entryForm, setEntryForm] = useState({
+    entryType: "Anamnesis" as "Anamnesis" | "Prescription" | "MedicalOrder",
     title: "",
     description: "",
     appointmentId: "none",
@@ -83,7 +84,7 @@ export default function ProntuarioPaciente() {
   const createEntryMutation = useMutation({
     mutationFn: () =>
       clinicalRecordsApi.createEntry(session!.token, patientId, {
-        entryType: "Anamnesis",
+        entryType: entryForm.entryType,
         title: entryForm.title.trim(),
         description: entryForm.description.trim(),
         appointmentId: entryForm.appointmentId !== "none" ? entryForm.appointmentId : undefined,
@@ -94,6 +95,7 @@ export default function ProntuarioPaciente() {
       await queryClient.invalidateQueries({ queryKey: ["clinical-record", "summary", patientId] });
       setDialogOpen(false);
       setEntryForm({
+        entryType: "Anamnesis",
         title: "",
         description: "",
         appointmentId: "none",
@@ -234,16 +236,37 @@ export default function ProntuarioPaciente() {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
-                    Nova evolução
+                    Novo registro
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Nova evolução clínica</DialogTitle>
+                    <DialogTitle>Novo registro clínico</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Titulo</Label>
+                      <Label>Tipo de registro</Label>
+                      <Select
+                        value={entryForm.entryType}
+                        onValueChange={(value) =>
+                          setEntryForm((current) => ({
+                            ...current,
+                            entryType: value as "Anamnesis" | "Prescription" | "MedicalOrder",
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Anamnesis">Evolução clínica</SelectItem>
+                          <SelectItem value="Prescription">Receita</SelectItem>
+                          <SelectItem value="MedicalOrder">Pedido médico</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Título</Label>
                       <Input
                         value={entryForm.title}
                         onChange={(event) =>
@@ -280,7 +303,7 @@ export default function ProntuarioPaciente() {
                           <SelectItem value="none">Não vincular agora</SelectItem>
                           {completedAppointments.map((appointment) => (
                             <SelectItem key={appointment.id} value={appointment.id}>
-                              {formatDateTime(appointment.startTime)} â€¢ {appointment.title}
+                              {formatDateTime(appointment.startTime)} • {appointment.title}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -315,7 +338,7 @@ export default function ProntuarioPaciente() {
                         !entryForm.description.trim()
                       }
                     >
-                      {createEntryMutation.isPending ? "Salvando..." : "Salvar evolução"}
+                      {createEntryMutation.isPending ? "Salvando..." : "Salvar registro"}
                     </Button>
                   </div>
                 </DialogContent>
@@ -366,7 +389,7 @@ export default function ProntuarioPaciente() {
                         ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {formatDateTime(entry.createdAt)} â€¢ Autor:{" "}
+                        {formatDateTime(entry.createdAt)} • Autor:{" "}
                         {entry.authorUserId === profile?.userId ? profile?.name : "Outro profissional"}
                       </p>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">
@@ -450,7 +473,7 @@ export default function ProntuarioPaciente() {
                       </Select>
                       {completedAppointments.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                          Ã‰ necessÃ¡rio vincular o documento a uma consulta concluÃ­da antes de salvÃ¡-lo.
+                          É necessário vincular o documento a uma consulta concluída antes de salvá-lo.
                         </p>
                       ) : null}
                     </div>
@@ -512,7 +535,7 @@ export default function ProntuarioPaciente() {
                       <div>
                         <h3 className="font-medium">{document.fileName}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {document.entryTitle} â€¢ {formatDateLabel(document.createdAt)}
+                          {document.entryTitle} • {formatDateLabel(document.createdAt)}
                         </p>
                       </div>
                       <Button

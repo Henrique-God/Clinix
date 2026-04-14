@@ -30,7 +30,13 @@ public class UserService : IUserService
             Name = request.Name.Trim(),
             UserType = UserType.User,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Cpf = request.Cpf?.Trim(),
+            Phone = request.Phone?.Trim(),
+            DateOfBirth = request.DateOfBirth.HasValue
+                ? DateTime.SpecifyKind(request.DateOfBirth.Value, DateTimeKind.Utc)
+                : null,
+            HealthInsurance = request.HealthInsurance?.Trim()
         };
 
         context.Users.Add(user);
@@ -76,6 +82,14 @@ public class UserService : IUserService
             CreatedAt = DateTime.UtcNow
         };
 
+        List<string>? normalizedPlans = request.AcceptedInsurancePlans is { Count: > 0 }
+            ? request.AcceptedInsurancePlans
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : null;
+
         DoctorProfile doctorProfile = new DoctorProfile
         {
             UserId = user.Id,
@@ -83,6 +97,10 @@ public class UserService : IUserService
             NormalizedProfessionalRegister = normalizedProfessionalRegister,
             Specialties = JsonSerializer.Serialize(normalizedSpecialties),
             Phone = request.Phone.Trim(),
+            ConsultationPriceCents = request.ConsultationPriceCents,
+            AcceptedInsurancePlans = normalizedPlans is { Count: > 0 }
+                ? JsonSerializer.Serialize(normalizedPlans)
+                : null,
             CreatedAt = DateTime.UtcNow
         };
 

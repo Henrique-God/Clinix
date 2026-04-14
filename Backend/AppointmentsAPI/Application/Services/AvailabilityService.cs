@@ -40,7 +40,10 @@ public class AvailabilityService
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(cancellationToken);
         await EnsureNoAvailabilityOverlapAsync(doctorId, startTime, endTime, null, cancellationToken);
 
-        DoctorAvailability availability = DoctorAvailability.Create(doctorId, startTime, endTime, request.Visibility, utcNow);
+        string? insurancePlansJson = SerializeInsurancePlans(request.InsurancePlans);
+        DoctorAvailability availability = DoctorAvailability.Create(
+            doctorId, startTime, endTime, request.Visibility,
+            request.AcceptsPrivate, request.AcceptsInsurance, insurancePlansJson, utcNow);
         context.DoctorAvailabilities.Add(availability);
         await context.SaveChangesAsync(cancellationToken);
 
@@ -72,7 +75,9 @@ public class AvailabilityService
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(cancellationToken);
         await EnsureNoAvailabilityOverlapAsync(availability.DoctorId, startTime, endTime, availability.Id, cancellationToken);
 
-        availability.Update(startTime, endTime, request.Visibility, utcNow);
+        string? insurancePlansJson = SerializeInsurancePlans(request.InsurancePlans);
+        availability.Update(startTime, endTime, request.Visibility,
+            request.AcceptsPrivate, request.AcceptsInsurance, insurancePlansJson, utcNow);
         await context.SaveChangesAsync(cancellationToken);
 
         if (transaction is not null)
@@ -137,7 +142,7 @@ public class AvailabilityService
 
     public async Task<IReadOnlyCollection<AvailableSlotResponseDto>> GetPublicAvailableSlotsAsync(Guid doctorId, AvailableSlotsQueryDto query, CancellationToken cancellationToken)
     {
-        await EnsureActiveDoctorAsync(doctorId, cancellationToken);
+        UserDirectoryEntry doctor = await EnsureActiveDoctorAsync(doctorId, cancellationToken);
 
         DateTime utcNow = clock.UtcNow;
         DateTime fromUtc = NormalizeUtc(query.FromUtc);
@@ -159,6 +164,14 @@ public class AvailabilityService
                 && item.StartTime < toUtc)
             .OrderBy(item => item.StartTime)
             .ToListAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(query.InsurancePlan))
+        {
+            string plan = query.InsurancePlan.Trim();
+            publicAvailabilities = publicAvailabilities
+                .Where(item => item.AcceptsInsurance && ContainsInsurancePlan(item.InsurancePlans, plan))
+                .ToList();
+        }
 
         List<(DateTime StartTime, DateTime EndTime)> blockingIntervals = await GetBlockingIntervalsAsync(
             doctorId,
@@ -211,7 +224,7 @@ public class AvailabilityService
             {
                 for (DateTime slotStart = segmentStart; slotStart + slotDuration <= segmentEnd; slotStart = slotStart.Add(slotDuration))
                 {
-                    slots.Add(availability.ToResponse(slotStart, slotStart.Add(slotDuration)));
+                    slots.Add(availability.ToResponse(slotStart, slotStart.Add(slotDuration), doctor.ConsultationPriceCents));
                 }
             }
         }
@@ -307,4 +320,29 @@ public class AvailabilityService
 
     private static DateTime NormalizeUtc(DateTime value) =>
         TimePrecision.NormalizeSchedulingUtc(value);
+
+    private static string? SerializeInsurancePlans(List<string>? plans)
+    {
+        if (plans is null || plans.Count == 0)
+            return null;
+
+        List<string> normalized = plans
+            .Select(p => p.Trim())
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return normalized.Count > 0
+            ? System.Text.Json.JsonSerializer.Serialize(normalized)
+            : null;
+    }
+
+    private static bool ContainsInsurancePlan(string? insurancePlansJson, string plan)
+    {
+        if (string.IsNullOrWhiteSpace(insurancePlansJson))
+            return false;
+
+        List<string>? plans = System.Text.Json.JsonSerializer.Deserialize<List<string>>(insurancePlansJson);
+        return plans?.Any(p => string.Equals(p, plan, StringComparison.OrdinalIgnoreCase)) ?? false;
+    }
 }

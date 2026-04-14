@@ -49,6 +49,9 @@ public static class ContractMappings
             StartTime = availability.StartTime,
             EndTime = availability.EndTime,
             Visibility = availability.Visibility,
+            AcceptsPrivate = availability.AcceptsPrivate,
+            AcceptsInsurance = availability.AcceptsInsurance,
+            InsurancePlans = DeserializeJsonList(availability.InsurancePlans),
             CreatedAt = availability.CreatedAt,
             UpdatedAt = availability.UpdatedAt
         };
@@ -70,12 +73,24 @@ public static class ContractMappings
             UpdatedAt = agendaEvent.UpdatedAt
         };
 
-    public static AvailableSlotResponseDto ToResponse(this DoctorAvailability availability, DateTime startTime, DateTime endTime) =>
+    public static AvailableSlotResponseDto ToResponse(this DoctorAvailability availability, DateTime startTime, DateTime endTime, int? consultationPriceCents = null) =>
         new()
         {
             DoctorId = availability.DoctorId,
             AvailabilityId = availability.Id,
             StartTime = startTime,
-            EndTime = endTime
+            EndTime = endTime,
+            AcceptsPrivate = availability.AcceptsPrivate,
+            AcceptsInsurance = availability.AcceptsInsurance,
+            InsurancePlans = DeserializeJsonList(availability.InsurancePlans),
+            ConsultationPriceCents = consultationPriceCents
         };
+
+    private static IReadOnlyCollection<string> DeserializeJsonList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<string>();
+
+        return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+    }
 }

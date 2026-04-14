@@ -78,6 +78,7 @@ public class AppointmentsDbContext : DbContext
             entity.ToTable("doctor_availability");
             entity.HasKey(item => item.Id);
             entity.Property(item => item.Visibility).HasConversion<int>();
+            entity.Property(item => item.InsurancePlans).HasMaxLength(2000);
             entity.HasIndex(item => new { item.DoctorId, item.StartTime, item.EndTime });
         });
 

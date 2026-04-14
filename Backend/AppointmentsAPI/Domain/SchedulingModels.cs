@@ -373,15 +373,32 @@ public class DoctorAvailability
 
     public ScheduleVisibility Visibility { get; set; }
 
+    public bool AcceptsPrivate { get; set; } = true;
+
+    public bool AcceptsInsurance { get; set; }
+
+    public string? InsurancePlans { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
 
     public DateTime? DeletedAt { get; set; }
 
-    public static DoctorAvailability Create(Guid doctorId, DateTime startTime, DateTime endTime, ScheduleVisibility visibility, DateTime utcNow)
+    public static DoctorAvailability Create(
+        Guid doctorId,
+        DateTime startTime,
+        DateTime endTime,
+        ScheduleVisibility visibility,
+        bool acceptsPrivate,
+        bool acceptsInsurance,
+        string? insurancePlans,
+        DateTime utcNow)
     {
         SchedulingRules.ValidateRange(startTime, endTime, "Availability");
+
+        if (!acceptsPrivate && !acceptsInsurance)
+            throw DomainRuleException.Validation("invalid_payment_type", "At least one payment type (private or insurance) must be accepted.");
 
         return new DoctorAvailability
         {
@@ -390,18 +407,34 @@ public class DoctorAvailability
             StartTime = startTime,
             EndTime = endTime,
             Visibility = visibility,
+            AcceptsPrivate = acceptsPrivate,
+            AcceptsInsurance = acceptsInsurance,
+            InsurancePlans = insurancePlans,
             CreatedAt = utcNow,
             UpdatedAt = utcNow
         };
     }
 
-    public void Update(DateTime startTime, DateTime endTime, ScheduleVisibility visibility, DateTime utcNow)
+    public void Update(
+        DateTime startTime,
+        DateTime endTime,
+        ScheduleVisibility visibility,
+        bool acceptsPrivate,
+        bool acceptsInsurance,
+        string? insurancePlans,
+        DateTime utcNow)
     {
         SchedulingRules.ValidateRange(startTime, endTime, "Availability");
+
+        if (!acceptsPrivate && !acceptsInsurance)
+            throw DomainRuleException.Validation("invalid_payment_type", "At least one payment type (private or insurance) must be accepted.");
 
         StartTime = startTime;
         EndTime = endTime;
         Visibility = visibility;
+        AcceptsPrivate = acceptsPrivate;
+        AcceptsInsurance = acceptsInsurance;
+        InsurancePlans = insurancePlans;
         UpdatedAt = utcNow;
     }
 

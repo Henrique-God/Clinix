@@ -60,6 +60,7 @@ async def send_chat_message(
         message=request.message,
         patient_id=request.patient_id,
         conversation_id=request.conversation_id,
+        patient_insurance_plan=request.patient_insurance_plan,
     )
     return ChatMessageResponse(
         reply=reply,

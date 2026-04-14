@@ -71,12 +71,15 @@ class AppointmentsClient:
         from_utc: str,
         to_utc: str,
         duration_minutes: int = 30,
+        insurance_plan: str | None = None,
     ) -> list[dict[str, Any]]:
-        params = {
+        params: dict[str, Any] = {
             "FromUtc": from_utc,
             "ToUtc": to_utc,
             "DurationMinutes": duration_minutes,
         }
+        if insurance_plan:
+            params["InsurancePlan"] = insurance_plan
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.get(
                 f"{self._base_url}/doctors/{doctor_id}/available-slots",

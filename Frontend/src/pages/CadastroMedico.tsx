@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { HEALTH_INSURANCE_PLANS } from "@/lib/health-insurance-plans";
 
 const especialidades = [
   "Cardiologia",
@@ -32,12 +34,14 @@ export default function CadastroMedico() {
     nome: "",
     crm: "",
     estado: "",
-    especialidade: "",
     telefone: "",
     email: "",
     senha: "",
     confirmarSenha: "",
+    consultationPrice: "",
   });
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [selectedPlans, setSelectedPlans] = useState<string[]>([]);
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     setFormData({ ...formData, [event.target.name]: event.target.value });
@@ -59,9 +63,9 @@ export default function CadastroMedico() {
       return;
     }
 
-    if (!formData.especialidade) {
+    if (selectedSpecialties.length === 0) {
       toast({
-        title: "Especialidade obrigatoria",
+        title: "Especialidade obrigatória",
         description: "Selecione ao menos uma especialidade para concluir o cadastro.",
         variant: "destructive",
       });
@@ -75,13 +79,19 @@ export default function CadastroMedico() {
         .filter(Boolean)
         .join("/");
 
+      const priceValue = parseFloat(formData.consultationPrice);
+
       const session = await registerDoctor({
         name: formData.nome.trim(),
         professionalRegister,
-        specialties: [formData.especialidade],
+        specialties: selectedSpecialties,
         email: formData.email.trim(),
         phone: formData.telefone.trim(),
         password: formData.senha,
+        consultationPriceCents: !isNaN(priceValue) && priceValue > 0
+          ? Math.round(priceValue * 100)
+          : undefined,
+        acceptedInsurancePlans: selectedPlans.length > 0 ? selectedPlans : undefined,
       });
 
       navigate(resolveHomePath(session.userType), { replace: true });
@@ -170,23 +180,107 @@ export default function CadastroMedico() {
               </div>
 
               <div className="space-y-2">
-                <Label>Especialidade</Label>
+                <Label>Especialidades</Label>
                 <Select
-                  value={formData.especialidade}
-                  onValueChange={(value) => handleSelectChange("especialidade", value)}
+                  value=""
+                  onValueChange={(value) => {
+                    if (!selectedSpecialties.includes(value)) {
+                      setSelectedSpecialties((prev) => [...prev, value]);
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="input-focus">
-                    <SelectValue placeholder="Selecione uma especialidade" />
+                    <SelectValue placeholder="Adicionar especialidade" />
                   </SelectTrigger>
                   <SelectContent>
-                    {especialidades.map((especialidade) => (
-                      <SelectItem key={especialidade} value={especialidade}>
-                        {especialidade}
+                    {especialidades
+                      .filter((e) => !selectedSpecialties.includes(e))
+                      .map((especialidade) => (
+                        <SelectItem key={especialidade} value={especialidade}>
+                          {especialidade}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {selectedSpecialties.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedSpecialties.map((spec) => (
+                      <Badge key={spec} variant="secondary" className="gap-1 pr-1">
+                        {spec}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedSpecialties((prev) =>
+                              prev.filter((s) => s !== spec),
+                            )
+                          }
+                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="consultationPrice">Preço da consulta particular (R$)</Label>
+                <Input
+                  id="consultationPrice"
+                  name="consultationPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ex: 250.00"
+                  value={formData.consultationPrice}
+                  onChange={handleChange}
+                  className="input-focus"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Planos de saúde aceitos (opcional)</Label>
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    if (!selectedPlans.includes(value)) {
+                      setSelectedPlans((prev) => [...prev, value]);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className="input-focus">
+                    <SelectValue placeholder="Adicionar plano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HEALTH_INSURANCE_PLANS.filter((p) => !selectedPlans.includes(p)).map((plan) => (
+                      <SelectItem key={plan} value={plan}>
+                        {plan}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedPlans.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedPlans.map((plan) => (
+                      <Badge key={plan} variant="secondary" className="gap-1 pr-1">
+                        {plan}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlans((prev) => prev.filter((p) => p !== plan))}
+                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -249,7 +343,7 @@ export default function CadastroMedico() {
               <div className="bg-secondary/50 rounded-lg p-4 mt-4">
                 <p className="text-sm text-muted-foreground">
                   <strong>Próximo passo:</strong> após o cadastro, você poderá
-                  configurar seus horários de atendimento no painel.
+                  configurar seus horários de atendimento e ajustar suas informações no painel.
                 </p>
               </div>
 

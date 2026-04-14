@@ -27,4 +27,8 @@ public class RegisterDoctorRequestDTO
     [Required]
     [MinLength(8)]
     public string Password { get; set; } = string.Empty;
+
+    public int? ConsultationPriceCents { get; set; }
+
+    public List<string>? AcceptedInsurancePlans { get; set; }
 }
