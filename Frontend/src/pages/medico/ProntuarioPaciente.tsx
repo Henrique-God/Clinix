@@ -101,14 +101,14 @@ export default function ProntuarioPaciente() {
       });
       toast({
         title: "Registro criado",
-        description: "A nova evolucao clinica foi salva com sucesso.",
+        description: "A nova evolução clínica foi salva com sucesso.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel criar o registro",
+        title: "Não foi possível criar o registro",
         description:
-          error instanceof Error ? error.message : "Verifique permissao e consulta vinculada.",
+          error instanceof Error ? error.message : "Verifique a permissão e a consulta vinculada.",
         variant: "destructive",
       });
     },
@@ -152,14 +152,14 @@ export default function ProntuarioPaciente() {
       });
       toast({
         title: "Documento salvo",
-        description: "O anexo foi incluido no prontuario com sucesso.",
+        description: "O anexo foi incluído no prontuário com sucesso.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel salvar o documento",
+        title: "Não foi possível salvar o documento",
         description:
-          error instanceof Error ? error.message : "Verifique a permissao clinica e tente novamente.",
+          error instanceof Error ? error.message : "Verifique a permissão clínica e tente novamente.",
         variant: "destructive",
       });
     },
@@ -193,7 +193,7 @@ export default function ProntuarioPaciente() {
       downloadBlob(blob, fileName);
     } catch (error) {
       toast({
-        title: "Nao foi possivel baixar o documento",
+        title: "Não foi possível baixar o documento",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -226,7 +226,7 @@ export default function ProntuarioPaciente() {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>{summaryQuery.data?.activeEntriesCount ?? 0} registros</span>
                     <span>{summaryQuery.data?.activeDocumentsCount ?? 0} documentos</span>
-                    <span>{completedAppointments.length} consultas concluidas</span>
+                    <span>{completedAppointments.length} consultas concluídas</span>
                   </div>
                 </div>
               </div>
@@ -234,12 +234,12 @@ export default function ProntuarioPaciente() {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
-                    Nova evolucao
+                    Nova evolução
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Nova evolucao clinica</DialogTitle>
+                    <DialogTitle>Nova evolução clínica</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -249,7 +249,7 @@ export default function ProntuarioPaciente() {
                         onChange={(event) =>
                           setEntryForm((current) => ({ ...current, title: event.target.value }))
                         }
-                        placeholder="Ex: Evolucao pos consulta"
+                        placeholder="Ex.: Evolução pós-consulta"
                       />
                     </div>
                     <div className="space-y-2">
@@ -262,7 +262,7 @@ export default function ProntuarioPaciente() {
                             description: event.target.value,
                           }))
                         }
-                        placeholder="Descreva a evolucao, conduta e proximos passos."
+                        placeholder="Descreva a evolução, a conduta e os próximos passos."
                       />
                     </div>
                     <div className="space-y-2">
@@ -277,10 +277,10 @@ export default function ProntuarioPaciente() {
                           <SelectValue placeholder="Selecione uma consulta" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Nao vincular agora</SelectItem>
+                          <SelectItem value="none">Não vincular agora</SelectItem>
                           {completedAppointments.map((appointment) => (
                             <SelectItem key={appointment.id} value={appointment.id}>
-                              {formatDateTime(appointment.startTime)} • {appointment.title}
+                              {formatDateTime(appointment.startTime)} â€¢ {appointment.title}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -315,7 +315,7 @@ export default function ProntuarioPaciente() {
                         !entryForm.description.trim()
                       }
                     >
-                      {createEntryMutation.isPending ? "Salvando..." : "Salvar evolucao"}
+                      {createEntryMutation.isPending ? "Salvando..." : "Salvar evolução"}
                     </Button>
                   </div>
                 </DialogContent>
@@ -328,7 +328,7 @@ export default function ProntuarioPaciente() {
           <TabsList className="mb-4">
             <TabsTrigger value="historico" className="gap-2">
               <Stethoscope className="w-4 h-4" />
-              Historico
+              Histórico
             </TabsTrigger>
             <TabsTrigger value="documentos" className="gap-2">
               <FileText className="w-4 h-4" />
@@ -347,7 +347,7 @@ export default function ProntuarioPaciente() {
           <TabsContent value="historico">
             {entriesQuery.isLoading ? (
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
-                <p className="text-muted-foreground">Carregando prontuario...</p>
+                <p className="text-muted-foreground">Carregando prontuário...</p>
               </Card>
             ) : (entriesQuery.data?.length ?? 0) > 0 ? (
               <div className="space-y-4">
@@ -366,7 +366,7 @@ export default function ProntuarioPaciente() {
                         ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {formatDateTime(entry.createdAt)} • Autor:{" "}
+                        {formatDateTime(entry.createdAt)} â€¢ Autor:{" "}
                         {entry.authorUserId === profile?.userId ? profile?.name : "Outro profissional"}
                       </p>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">
@@ -378,9 +378,9 @@ export default function ProntuarioPaciente() {
               </div>
             ) : (
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
-                <p className="font-medium mb-2">Nenhuma evolucao cadastrada</p>
+                <p className="font-medium mb-2">Nenhuma evolução cadastrada</p>
                 <p className="text-sm text-muted-foreground">
-                  Crie uma nova anotacao clinica quando houver permissao de escrita para este prontuario.
+                  Crie uma nova anotação clínica quando houver permissão de escrita para este prontuário.
                 </p>
               </Card>
             )}
@@ -397,7 +397,7 @@ export default function ProntuarioPaciente() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Novo documento clinico</DialogTitle>
+                    <DialogTitle>Novo documento clínico</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -423,7 +423,7 @@ export default function ProntuarioPaciente() {
                             description: event.target.value,
                           }))
                         }
-                        placeholder="Contexto clinico do documento anexado."
+                        placeholder="Contexto clínico do documento anexado."
                       />
                     </div>
                     <div className="space-y-2">
@@ -450,7 +450,7 @@ export default function ProntuarioPaciente() {
                       </Select>
                       {completedAppointments.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                          O backend exige uma consulta concluida para anexos enviados por medico.
+                          Ã‰ necessÃ¡rio vincular o documento a uma consulta concluÃ­da antes de salvÃ¡-lo.
                         </p>
                       ) : null}
                     </div>
@@ -512,7 +512,7 @@ export default function ProntuarioPaciente() {
                       <div>
                         <h3 className="font-medium">{document.fileName}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {document.entryTitle} • {formatDateLabel(document.createdAt)}
+                          {document.entryTitle} â€¢ {formatDateLabel(document.createdAt)}
                         </p>
                       </div>
                       <Button
@@ -528,7 +528,7 @@ export default function ProntuarioPaciente() {
               </div>
             ) : (
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
-                <p className="text-muted-foreground">Nenhum documento disponivel neste prontuario.</p>
+                <p className="text-muted-foreground">Nenhum documento disponível neste prontuário.</p>
               </Card>
             )}
           </TabsContent>
@@ -600,8 +600,8 @@ function PatientStravaActivities({ patientId, token }: { patientId: string; toke
     return (
       <Card className="p-8 text-center bg-secondary/30 border-dashed">
         <p className="text-muted-foreground">
-          Nao foi possivel carregar as atividades. O paciente pode nao ter conectado o Strava
-          ou voce pode nao ter permissao de acesso.
+          Não foi possível carregar as atividades. O paciente pode não ter conectado o Strava
+          ou você pode não ter permissão de acesso.
         </p>
       </Card>
     );
@@ -611,7 +611,7 @@ function PatientStravaActivities({ patientId, token }: { patientId: string; toke
     return (
       <Card className="p-8 text-center bg-secondary/30 border-dashed">
         <Activity className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-        <p className="text-muted-foreground">Nenhuma atividade do Strava disponivel para este paciente.</p>
+        <p className="text-muted-foreground">Nenhuma atividade do Strava disponível para este paciente.</p>
       </Card>
     );
   }
@@ -733,8 +733,8 @@ function PatientWorkoutRoutines({ patientId, token }: { patientId: string; token
     return (
       <Card className="p-8 text-center bg-secondary/30 border-dashed">
         <p className="text-muted-foreground">
-          Nao foi possivel carregar as rotinas de treino. O paciente pode nao ter rotinas cadastradas
-          ou voce pode nao ter permissao de acesso.
+          Não foi possível carregar as rotinas de treino. O paciente pode não ter rotinas cadastradas
+          ou você pode não ter permissão de acesso.
         </p>
       </Card>
     );

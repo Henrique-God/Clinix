@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
 
 const steps = [
   { id: "especialidade", label: "Especialidade" },
-  { id: "medico", label: "Medico" },
+  { id: "medico", label: "Médico" },
   { id: "data-hora", label: "Data e Hora" },
-  { id: "confirmacao", label: "Confirmacao" },
+  { id: "confirmacao", label: "Confirmação" },
 ];
 
 export default function SelecionarMedico() {
@@ -70,7 +70,7 @@ export default function SelecionarMedico() {
 
         <Card className="p-6 sm:p-8 animate-slide-up shadow-card">
           <h1 className="text-2xl font-bold text-center mb-2">
-            Escolha o medico
+            Escolha o médico
           </h1>
           <p className="text-muted-foreground text-center mb-8">
             {especialidade
@@ -91,12 +91,12 @@ export default function SelecionarMedico() {
           <div className="space-y-4 mb-8 max-w-2xl mx-auto">
             {doctorsQuery.isLoading ? (
               <Card className="p-8 text-center bg-secondary/30 border-dashed">
-                <p className="text-muted-foreground">Carregando medicos...</p>
+                <p className="text-muted-foreground">Carregando médicos...</p>
               </Card>
             ) : doctorsQuery.isError ? (
               <Card className="p-8 text-center bg-destructive/5 border-destructive/20">
                 <p className="text-sm text-muted-foreground">
-                  Nao foi possivel carregar os profissionais agora.
+                  Não foi possível carregar os profissionais agora.
                 </p>
               </Card>
             ) : filteredDoctors.length > 0 ? (
@@ -136,7 +136,7 @@ export default function SelecionarMedico() {
               })
             ) : (
               <Card className="p-8 text-center bg-secondary/30 border-dashed">
-                <p className="font-medium mb-2">Nenhum medico encontrado</p>
+                <p className="font-medium mb-2">Nenhum médico encontrado</p>
                 <p className="text-sm text-muted-foreground">
                   Tente outra especialidade ou ajuste sua busca.
                 </p>
@@ -149,7 +149,7 @@ export default function SelecionarMedico() {
               Voltar
             </Button>
             <Button onClick={handleNext} disabled={!selectedMedico}>
-              Proximo
+              Próximo
             </Button>
           </div>
         </Card>

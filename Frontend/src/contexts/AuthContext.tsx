@@ -49,7 +49,7 @@ function buildSession(
   const userType = normalizeUserType(authResponse.userType);
 
   if (!userType) {
-    throw new Error("Tipo de usuario retornado pelo backend e invalido.");
+    throw new Error("O tipo de usuário retornado para a sessão é inválido.");
   }
 
   return {

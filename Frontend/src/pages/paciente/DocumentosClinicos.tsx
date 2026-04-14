@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -100,12 +101,12 @@ export default function DocumentosClinicos() {
       setDocumentFile(null);
       toast({
         title: "Documento enviado",
-        description: "O arquivo ja esta disponivel no seu prontuario Clinix.",
+        description: "O arquivo já está disponível no seu prontuário Clinix.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel enviar o documento",
+        title: "Não foi possível enviar o documento",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -134,7 +135,7 @@ export default function DocumentosClinicos() {
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel iniciar a extracao",
+        title: "Não foi possível iniciar a extração",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -157,7 +158,7 @@ export default function DocumentosClinicos() {
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel consultar o historico",
+        title: "Não foi possível consultar o histórico",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -175,7 +176,7 @@ export default function DocumentosClinicos() {
       downloadBlob(blob, fileName);
     } catch (error) {
       toast({
-        title: "Nao foi possivel baixar o documento",
+        title: "Não foi possível baixar o documento",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -195,7 +196,7 @@ export default function DocumentosClinicos() {
           <div>
             <h1 className="text-2xl font-bold">Central de Documentos</h1>
             <p className="text-muted-foreground">
-              Envie anexos para o prontuario, acompanhe a extracao por IA e consulte seu historico.
+              Envie anexos para o prontuário, acompanhe a extração por IA e consulte seu histórico.
             </p>
           </div>
 
@@ -213,7 +214,7 @@ export default function DocumentosClinicos() {
               </p>
             </Card>
             <Card className="p-4 col-span-2 sm:col-span-1">
-              <p className="text-xs text-muted-foreground">Ultima ingestao</p>
+              <p className="text-xs text-muted-foreground">Última ingestão</p>
               <p className="text-sm font-semibold">
                 {ingestionStatusQuery.data?.status ?? "Nenhuma"}
               </p>
@@ -226,7 +227,7 @@ export default function DocumentosClinicos() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileUp className="h-5 w-5 text-primary" />
-                Upload manual para o prontuario
+                Upload manual para o prontuário
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -240,7 +241,7 @@ export default function DocumentosClinicos() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="document-description">Descricao clinica</Label>
+                <Label htmlFor="document-description">Descrição clínica</Label>
                 <Textarea
                   id="document-description"
                   value={documentDescription}
@@ -267,7 +268,7 @@ export default function DocumentosClinicos() {
                 }
                 onClick={() => manualUploadMutation.mutate()}
               >
-                {manualUploadMutation.isPending ? "Enviando..." : "Adicionar ao prontuario"}
+                {manualUploadMutation.isPending ? "Enviando..." : "Adicionar ao prontuário"}
               </Button>
             </CardContent>
           </Card>
@@ -281,7 +282,7 @@ export default function DocumentosClinicos() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Esse fluxo usa o backend de IA para extrair texto, resumir achados e indexar o documento.
+                Esse fluxo usa a inteligência da Clinix para extrair texto, resumir achados e organizar o documento.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="ai-file">Arquivo para processamento</Label>
@@ -345,7 +346,7 @@ export default function DocumentosClinicos() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BrainCircuit className="h-5 w-5 text-primary" />
-              Consulta inteligente ao historico
+              Consulta inteligente ao histórico
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -353,7 +354,7 @@ export default function DocumentosClinicos() {
               <Input
                 value={clinicalQuestion}
                 onChange={(event) => setClinicalQuestion(event.target.value)}
-                placeholder="Ex: Quais foram os ultimos exames anexados ao meu prontuario?"
+                placeholder="Ex.: Quais foram os últimos exames anexados ao meu prontuário?"
               />
               <Button
                 className="lg:min-w-44"
@@ -361,13 +362,13 @@ export default function DocumentosClinicos() {
                 onClick={() => ragMutation.mutate()}
               >
                 <Search className="mr-2 h-4 w-4" />
-                {ragMutation.isPending ? "Consultando..." : "Perguntar ao historico"}
+                {ragMutation.isPending ? "Consultando..." : "Perguntar ao histórico"}
               </Button>
             </div>
 
             {ragAnswer ? (
               <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-3">
-                <p className="text-sm whitespace-pre-line">{ragAnswer.answer}</p>
+                <MarkdownText content={ragAnswer.answer} className="text-sm" />
                 <p className="text-xs text-muted-foreground">
                   Fontes utilizadas: {ragAnswer.sources.length}
                 </p>
@@ -378,7 +379,7 @@ export default function DocumentosClinicos() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Documentos disponiveis</CardTitle>
+            <CardTitle>Documentos disponíveis</CardTitle>
           </CardHeader>
           <CardContent>
             {entriesQuery.isLoading ? (
@@ -410,9 +411,9 @@ export default function DocumentosClinicos() {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-10 text-center">
-                <p className="font-medium">Nenhum documento no prontuario</p>
+                <p className="font-medium">Nenhum documento no prontuário</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Use o upload manual ou a extracao por IA para comecar a alimentar seu historico.
+                  Use o upload manual ou a extração por IA para começar a alimentar seu histórico.
                 </p>
               </div>
             )}

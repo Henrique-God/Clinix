@@ -340,9 +340,9 @@ export function getAppointmentStatusLabel(status: AppointmentStatus | null) {
     case "CancelledByPatient":
       return "Cancelada pelo paciente";
     case "CancelledByDoctor":
-      return "Cancelada pelo medico";
+      return "Cancelada pelo médico";
     case "Completed":
-      return "Concluida";
+      return "Concluída";
     default:
       return "Desconhecida";
   }

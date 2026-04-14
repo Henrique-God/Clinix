@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Send, User } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { DoctorLayout } from "@/components/layouts/DoctorLayout";
 import { PatientLayout } from "@/components/layouts/PatientLayout";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ interface Message {
 
 const patientSuggestions = [
   "Quais consultas eu tenho esta semana?",
-  "Como esta meu historico clinico?",
+  "Como está meu histórico clínico?",
   "Quero entender meus documentos recentes.",
 ];
 
@@ -39,14 +40,15 @@ export default function AssistenteVirtual() {
     {
       id: "initial-message",
       content: isDoctor
-        ? "Ola, posso ajudar com sua agenda, seus pacientes e rotinas clinicas."
-        : "Ola, posso ajudar com suas consultas, seu historico clinico e seus documentos.",
+        ? "Olá, posso ajudar com sua agenda, seus pacientes e suas rotinas clínicas."
+        : "Olá, posso ajudar com suas consultas, seu histórico clínico e seus documentos.",
       sender: "bot",
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -82,7 +84,7 @@ export default function AssistenteVirtual() {
         {
           id: `bot-error-${Date.now()}`,
           content:
-            "Nao consegui responder agora. Tente novamente em alguns instantes.",
+            "Não consegui responder agora. Tente novamente em alguns instantes.",
           sender: "bot",
           timestamp: new Date(),
         },
@@ -93,10 +95,14 @@ export default function AssistenteVirtual() {
   const headerText = useMemo(
     () =>
       isDoctor
-        ? "Assistente Clinix para medicos"
+        ? "Assistente Clinix para médicos"
         : "Assistente Clinix para pacientes",
     [isDoctor],
   );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, chatMutation.isPending]);
 
   function handleSend() {
     const trimmedInput = input.trim();
@@ -128,8 +134,13 @@ export default function AssistenteVirtual() {
               </div>
               <div>
                 <h2 className="font-semibold">{headerText}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {chatMutation.isPending ? "Respondendo..." : "Online"}
+                <p
+                  className={cn(
+                    "text-sm text-muted-foreground",
+                    chatMutation.isPending && "animate-shimmer font-medium",
+                  )}
+                >
+                  {chatMutation.isPending ? "Pensando na melhor resposta..." : "Online"}
                 </p>
               </div>
             </div>
@@ -161,10 +172,25 @@ export default function AssistenteVirtual() {
                       : "bg-primary text-primary-foreground rounded-tr-none",
                   )}
                 >
-                  <p className="text-sm whitespace-pre-line">{message.content}</p>
+                  {message.sender === "bot" ? (
+                    <MarkdownText content={message.content} className="text-sm" />
+                  ) : (
+                    <p className="text-sm whitespace-pre-line">{message.content}</p>
+                  )}
                 </div>
               </div>
             ))}
+            {chatMutation.isPending ? (
+              <div className="flex gap-3">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <Bot className="h-4 w-4 text-primary" />
+                </div>
+                <div className="max-w-[80%] rounded-2xl rounded-tl-none bg-secondary px-4 py-3 text-sm text-muted-foreground">
+                  <p className="animate-shimmer font-medium">A Clinix está organizando a resposta...</p>
+                </div>
+              </div>
+            ) : null}
+            <div ref={messagesEndRef} />
           </div>
 
           {messages.length === 1 ? (

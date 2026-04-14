@@ -15,7 +15,7 @@ const Index = () => {
           Bem-vindo a Clinix
         </h1>
         <p className="text-xl text-muted-foreground mb-8">
-          Conectando medicos e pacientes para uma jornada clinica melhor
+          Conectando médicos e pacientes para uma jornada clínica melhor
         </p>
         <Button onClick={() => navigate("/")} size="lg">
           Acessar plataforma

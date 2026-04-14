@@ -76,9 +76,9 @@ export default function ProntuariosMedico() {
       <div className="animate-slide-up space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Prontuarios</h1>
+            <h1 className="text-2xl font-bold">Prontuários</h1>
             <p className="text-muted-foreground">
-              Acesse os historicos clinicos dos pacientes relacionados ao seu atendimento.
+              Acesse os históricos clínicos dos pacientes relacionados ao seu atendimento.
             </p>
           </div>
 
@@ -88,14 +88,14 @@ export default function ProntuariosMedico() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               className="pl-10"
-              placeholder="Buscar prontuario por paciente..."
+              placeholder="Buscar prontuário por paciente..."
             />
           </div>
         </div>
 
         {appointmentsQuery.isLoading ? (
           <Card className="p-12 text-center bg-secondary/30 border-dashed">
-            <p className="text-muted-foreground">Carregando prontuarios disponiveis...</p>
+            <p className="text-muted-foreground">Carregando prontuários disponíveis...</p>
           </Card>
         ) : filteredRecords.length > 0 ? (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -112,7 +112,7 @@ export default function ProntuariosMedico() {
                       <div>
                         <h2 className="font-semibold">{record.name}</h2>
                         <p className="text-sm text-muted-foreground">
-                          Ultimo atendimento:{" "}
+                          Último atendimento:{" "}
                           {record.latestAppointment
                             ? formatDateLabel(record.latestAppointment)
                             : "Sem registro"}
@@ -120,10 +120,10 @@ export default function ProntuariosMedico() {
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span className="status-badge bg-primary/10 text-primary">
-                          {record.completedCount} consulta(s) concluidas
+                          {record.completedCount} consulta(s) concluídas
                         </span>
                         <span className="status-badge bg-secondary text-foreground">
-                          Historico Clinix
+                          Histórico Clinix
                         </span>
                       </div>
                     </div>
@@ -134,7 +134,7 @@ export default function ProntuariosMedico() {
                 <div className="mt-5 flex justify-end">
                   <Button onClick={() => navigate(`/medico/prontuario/${record.userId}`)}>
                     <FileText className="mr-2 h-4 w-4" />
-                    Abrir prontuario
+                    Abrir prontuário
                   </Button>
                 </div>
               </Card>
@@ -143,9 +143,9 @@ export default function ProntuariosMedico() {
         ) : (
           <Card className="p-12 text-center">
             <UserRound className="mx-auto mb-4 h-12 w-12 text-muted-foreground opacity-50" />
-            <p className="font-medium">Nenhum prontuario disponivel</p>
+            <p className="font-medium">Nenhum prontuário disponível</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Os prontuarios aparecem aqui quando houver relacionamento clinico e permissao ativa.
+              Os prontuários aparecem aqui quando houver relacionamento clínico e permissão ativa.
             </p>
           </Card>
         )}

@@ -34,7 +34,7 @@ export default function Login() {
       toast({
         title: "Falha no login",
         description:
-          error instanceof Error ? error.message : "Nao foi possivel entrar.",
+          error instanceof Error ? error.message : "Não foi possível entrar.",
         variant: "destructive",
       });
     } finally {
@@ -56,7 +56,7 @@ export default function Login() {
             className="w-full max-w-sm mx-auto mb-8 rounded-2xl shadow-lg"
           />
           <p className="text-lg text-muted-foreground">
-            Conectando medicos e pacientes para uma jornada clinica mais simples.
+            Conectando médicos e pacientes para uma jornada clínica mais simples.
           </p>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function Login() {
           >
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="patient">Paciente</TabsTrigger>
-              <TabsTrigger value="doctor">Medico</TabsTrigger>
+              <TabsTrigger value="doctor">Médico</TabsTrigger>
             </TabsList>
 
             <TabsContent value="patient">
@@ -149,7 +149,7 @@ export default function Login() {
           </Tabs>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Nao tem uma conta?{" "}
+            Não tem uma conta?{" "}
             <button
               onClick={navigateToRegistration}
               className="text-primary hover:underline font-medium"

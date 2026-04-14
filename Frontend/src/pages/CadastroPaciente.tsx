@@ -49,7 +49,7 @@ export default function CadastroPaciente() {
       navigate(resolveHomePath(session.userType), { replace: true });
     } catch (error) {
       toast({
-        title: "Nao foi possivel criar sua conta",
+        title: "Não foi possível criar sua conta",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -78,7 +78,7 @@ export default function CadastroPaciente() {
             </div>
             <CardTitle className="text-2xl">Cadastro de Paciente</CardTitle>
             <CardDescription>
-              Crie sua conta com os campos atualmente suportados pelo backend
+              Crie sua conta com os dados disponíveis no cadastro atual da Clinix.
             </CardDescription>
           </CardHeader>
 
@@ -141,9 +141,8 @@ export default function CadastroPaciente() {
               </div>
 
               <div className="rounded-lg bg-secondary/50 p-4 text-sm text-muted-foreground">
-                Dados como CPF, telefone, convenio e data de nascimento ainda nao fazem parte
-                do contrato atual de cadastro desta API. Vamos trabalhar somente com os campos
-                persistidos hoje para manter o frontend alinhado ao backend.
+                Campos como CPF, telefone, convênio e data de nascimento ainda não estão disponíveis neste cadastro.
+                Por enquanto, vamos trabalhar com os dados que já podem ser salvos com segurança.
               </div>
 
               <div className="flex gap-3 pt-4">

@@ -83,9 +83,9 @@ export default function Assinatura() {
 
   const premiumFeatures = [
     "Registro de rotinas de treino personalizadas",
-    "Integracao com Strava para acompanhamento de atividades",
+    "Integração com Strava para acompanhamento de atividades",
     "Monitoramento multiprofissional de desempenho",
-    "Historico completo de atividades fisicas",
+    "Histórico completo de atividades físicas",
   ];
 
   return (
@@ -106,13 +106,13 @@ export default function Assinatura() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="p-6 space-y-4 border-border">
               <h3 className="text-lg font-semibold">Plano Gratuito</h3>
-              <p className="text-muted-foreground text-sm">Funcionalidades basicas do Clinix</p>
+              <p className="text-muted-foreground text-sm">Funcionalidades básicas do Clinix</p>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" /> Agendamento de consultas
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-green-500" /> Prontuario clinico
+                  <Check className="w-4 h-4 text-green-500" /> Prontuário clínico
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" /> Assistente virtual
@@ -123,10 +123,10 @@ export default function Assinatura() {
                 </li>
                 <li className="flex items-center gap-2">
                   <X className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Integracao Strava</span>
+                  <span className="text-muted-foreground">Integração Strava</span>
                 </li>
               </ul>
-              <p className="text-2xl font-bold">Gratis</p>
+              <p className="text-2xl font-bold">Grátis</p>
             </Card>
 
             <Card className="p-6 space-y-4 border-primary relative overflow-hidden">
@@ -149,9 +149,9 @@ export default function Assinatura() {
                 ))}
               </ul>
               <p className="text-2xl font-bold">
-                14 dias gratis
+                14 dias grátis
                 <span className="text-sm font-normal text-muted-foreground block">
-                  sem cartao de credito
+                  sem cartão de crédito
                 </span>
               </p>
               <Button
@@ -194,7 +194,7 @@ export default function Assinatura() {
             {resolvedStatus === "Trialing" && sub.trialDaysRemaining != null && (
               <div className="bg-primary/5 rounded-lg p-4">
                 <p className="text-sm font-medium">
-                  Periodo de teste: {sub.trialDaysRemaining} dias restantes
+                  Período de teste: {sub.trialDaysRemaining} dias restantes
                 </p>
                 {sub.trialEndsAt && (
                   <p className="text-xs text-muted-foreground mt-1">

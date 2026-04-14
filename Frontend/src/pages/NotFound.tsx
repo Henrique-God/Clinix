@@ -13,10 +13,10 @@ const NotFound = () => {
       <div className="text-center">
         <h1 className="mb-4 text-4xl font-bold">404</h1>
         <p className="mb-4 text-xl text-muted-foreground">
-          A pagina solicitada nao foi encontrada na Clinix.
+          A página solicitada não foi encontrada na Clinix.
         </p>
         <a href="/" className="text-primary underline hover:text-primary/90">
-          Voltar para o inicio
+          Voltar para o início
         </a>
       </div>
     </div>

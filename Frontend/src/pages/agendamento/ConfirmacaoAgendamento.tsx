@@ -11,9 +11,9 @@ import { formatDateTime, getAppointmentTimeRange } from "@/lib/date-utils";
 
 const steps = [
   { id: "especialidade", label: "Especialidade" },
-  { id: "medico", label: "Medico" },
+  { id: "medico", label: "Médico" },
   { id: "data-hora", label: "Data e Hora" },
-  { id: "confirmacao", label: "Confirmacao" },
+  { id: "confirmacao", label: "Confirmação" },
 ];
 
 export default function ConfirmacaoAgendamento() {
@@ -43,21 +43,21 @@ export default function ConfirmacaoAgendamento() {
         endTime: fim,
         invitationExpiresAt: inicio,
         title: `Consulta - ${especialidade}`,
-        description: `Convite de consulta enviado pela area do paciente para ${especialidade}.`,
+        description: `Convite de consulta enviado pela área do paciente para ${especialidade}.`,
         location: "Clinix",
         invitationMessage: "Solicitacao realizada pela plataforma Clinix.",
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "patient"] });
       toast({
-        title: "Solicitacao enviada com sucesso",
-        description: "O medico podera aceitar ou recusar o convite antes do horario marcado.",
+        title: "Solicitação enviada com sucesso",
+        description: "O médico poderá aceitar ou recusar o convite antes do horário marcado.",
       });
       navigate("/paciente/consultas", { replace: true });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel enviar o convite",
+        title: "Não foi possível enviar o convite",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -79,9 +79,9 @@ export default function ConfirmacaoAgendamento() {
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-2">Confirmacao</h1>
+          <h1 className="text-2xl font-bold text-center mb-2">Confirmação</h1>
           <p className="text-muted-foreground text-center mb-8">
-            Revise os detalhes antes de enviar a solicitacao ao medico.
+            Revise os detalhes antes de enviar a solicitação ao médico.
           </p>
 
           <div className="bg-secondary/30 rounded-xl p-6 mb-6 max-w-xl mx-auto">
@@ -99,7 +99,7 @@ export default function ConfirmacaoAgendamento() {
               <div className="flex items-center gap-3">
                 <User className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Medico</p>
+                  <p className="text-sm text-muted-foreground">Médico</p>
                   <p className="font-medium">
                     {doctorQuery.data?.name ?? (doctorQuery.isLoading ? "Carregando..." : medico)}
                   </p>
@@ -135,8 +135,8 @@ export default function ConfirmacaoAgendamento() {
           <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 mb-8 max-w-xl mx-auto flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
             <div className="text-sm text-muted-foreground space-y-1">
-              <p>Esta solicitacao cria um convite de consulta com status inicial pendente.</p>
-              <p>O convite permanece valido ate o horario de inicio da consulta.</p>
+              <p>Esta solicitação cria um convite de consulta com status inicial pendente.</p>
+              <p>O convite permanece válido até o horário de início da consulta.</p>
             </div>
           </div>
 
@@ -145,7 +145,7 @@ export default function ConfirmacaoAgendamento() {
               Voltar
             </Button>
             <Button onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending}>
-              {inviteMutation.isPending ? "Enviando..." : "Confirmar solicitacao"}
+              {inviteMutation.isPending ? "Enviando..." : "Confirmar solicitação"}
             </Button>
           </div>
         </Card>

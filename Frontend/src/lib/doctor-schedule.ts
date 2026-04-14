@@ -34,6 +34,11 @@ export interface WeeklyCalendarMetrics {
   height: number;
 }
 
+interface TimeRange {
+  startTime: string;
+  endTime: string;
+}
+
 export function buildIsoRangeForDate(date: Date, time: string) {
   const [hours, minutes] = time.split(":").map(Number);
   const nextDate = new Date(date);
@@ -84,19 +89,30 @@ export function buildWeeklyCalendarItems(
   availabilities: Availability[],
   agendaEvents: AgendaEvent[],
 ): WeeklyCalendarItem[] {
-  const availabilityItems = availabilities.map<WeeklyCalendarItem>((availability) => {
-    const visibility = resolveScheduleVisibility(availability.visibility);
+  const blockingRanges = agendaEvents
+    .filter((event) => event.blocksScheduling)
+    .map<TimeRange>((event) => ({
+      startTime: event.startTime,
+      endTime: event.endTime,
+    }));
 
-    return {
-      id: `availability-${availability.id}`,
-      title: visibility === "Private" ? "Disponibilidade privada" : "Disponivel para agendamento",
-      startTime: availability.startTime,
-      endTime: availability.endTime,
+  const availabilityItems = availabilities.flatMap<WeeklyCalendarItem>((availability) => {
+    const visibility = resolveScheduleVisibility(availability.visibility);
+    const remainingRanges = subtractBlockingRanges(
+      { startTime: availability.startTime, endTime: availability.endTime },
+      blockingRanges,
+    );
+
+    return remainingRanges.map((range, index) => ({
+      id: `availability-${availability.id}-${index}`,
+      title: visibility === "Private" ? "Disponibilidade privada" : "Disponível para agendamento",
+      startTime: range.startTime,
+      endTime: range.endTime,
       variant: visibility === "Private" ? "availability-private" : "availability-public",
       source: "availability",
       referenceId: availability.id,
-      subtitle: visibility === "Private" ? "Privada" : "Publica",
-    };
+      subtitle: visibility === "Private" ? "Privada" : "Pública",
+    }));
   });
 
   const calendarItems = agendaEvents.map<WeeklyCalendarItem>((event) => {
@@ -123,7 +139,7 @@ export function buildWeeklyCalendarItems(
           appointmentStatus === "PendingAcceptance"
             ? "Convite aguardando resposta"
             : appointmentStatus === "Completed"
-              ? "Consulta concluida"
+              ? "Consulta concluída"
               : "Consulta agendada",
       };
     }
@@ -143,6 +159,51 @@ export function buildWeeklyCalendarItems(
   return [...availabilityItems, ...calendarItems].sort((left, right) =>
     left.startTime.localeCompare(right.startTime),
   );
+}
+
+function subtractBlockingRanges(baseRange: TimeRange, blockingRanges: TimeRange[]) {
+  return blockingRanges
+    .filter((range) => rangesOverlap(baseRange, range))
+    .sort((left, right) => left.startTime.localeCompare(right.startTime))
+    .reduce<TimeRange[]>((segments, blockingRange) => {
+      return segments.flatMap((segment) => subtractSingleRange(segment, blockingRange));
+    }, [baseRange]);
+}
+
+function subtractSingleRange(segment: TimeRange, blockingRange: TimeRange) {
+  if (!rangesOverlap(segment, blockingRange)) {
+    return [segment];
+  }
+
+  const nextSegments: TimeRange[] = [];
+
+  if (segment.startTime < blockingRange.startTime) {
+    nextSegments.push({
+      startTime: segment.startTime,
+      endTime: minIso(segment.endTime, blockingRange.startTime),
+    });
+  }
+
+  if (segment.endTime > blockingRange.endTime) {
+    nextSegments.push({
+      startTime: maxIso(segment.startTime, blockingRange.endTime),
+      endTime: segment.endTime,
+    });
+  }
+
+  return nextSegments.filter((item) => item.startTime < item.endTime);
+}
+
+function rangesOverlap(left: TimeRange, right: TimeRange) {
+  return left.startTime < right.endTime && left.endTime > right.startTime;
+}
+
+function minIso(left: string, right: string) {
+  return left <= right ? left : right;
+}
+
+function maxIso(left: string, right: string) {
+  return left >= right ? left : right;
 }
 
 export function buildWeeklyCalendarMetrics(

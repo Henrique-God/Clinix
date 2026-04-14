@@ -54,12 +54,12 @@ export default function PerfilMedico() {
       setDialogOpen(false);
       toast({
         title: "Perfil atualizado",
-        description: "Os dados do medico foram salvos com sucesso.",
+        description: "Os dados do mÃ©dico foram salvos com sucesso.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel atualizar o perfil",
+        title: "NÃ£o foi possÃ­vel atualizar o perfil",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -72,11 +72,11 @@ export default function PerfilMedico() {
       await refreshProfile();
       toast({
         title: "Perfil sincronizado",
-        description: "Os dados do medico foram atualizados com sucesso.",
+        description: "Os dados do mÃ©dico foram atualizados com sucesso.",
       });
     } catch (error) {
       toast({
-        title: "Nao foi possivel atualizar o perfil",
+        title: "NÃ£o foi possÃ­vel atualizar o perfil",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -177,9 +177,9 @@ export default function PerfilMedico() {
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <Card>
             <CardHeader>
-              <CardTitle>{profile?.name ?? "Medico"}</CardTitle>
+              <CardTitle>{profile?.name ?? "MÃ©dico"}</CardTitle>
               <CardDescription>
-                Informacoes principais do profissional autenticado.
+                InformaÃ§Ãµes principais do profissional autenticado.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -187,19 +187,19 @@ export default function PerfilMedico() {
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">E-mail</p>
                 <p className="mt-1 flex items-center gap-2 font-medium">
                   <Mail className="h-4 w-4 text-primary" />
-                  {profile?.email ?? "Nao informado"}
+                  {profile?.email ?? "Não informado"}
                 </p>
               </div>
               <div className="rounded-xl bg-secondary/40 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Registro profissional</p>
                 <p className="mt-1 flex items-center gap-2 font-medium">
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  {profile?.professionalRegister ?? "Nao informado"}
+                  {profile?.professionalRegister ?? "Não informado"}
                 </p>
               </div>
               <div className="rounded-xl bg-secondary/40 p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Telefone</p>
-                <p className="mt-1 font-medium">{profile?.phone ?? "Nao informado"}</p>
+                <p className="mt-1 font-medium">{profile?.phone ?? "Não informado"}</p>
               </div>
             </CardContent>
           </Card>
@@ -208,7 +208,7 @@ export default function PerfilMedico() {
             <CardHeader>
               <CardTitle>Especialidades</CardTitle>
               <CardDescription>
-                Especialidades retornadas pelo backend no contexto autenticado.
+                Especialidades associadas ao seu cadastro profissional.
               </CardDescription>
             </CardHeader>
             <CardContent>

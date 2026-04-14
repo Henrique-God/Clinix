@@ -104,12 +104,12 @@ export default function Prontuario() {
       setGrantReason("");
       toast({
         title: "Acesso concedido",
-        description: "O medico selecionado agora pode consultar seu historico conforme as regras vigentes.",
+        description: "O médico selecionado agora pode consultar seu histórico conforme as regras vigentes.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel conceder o acesso",
+        title: "Não foi possível conceder o acesso",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -129,7 +129,7 @@ export default function Prontuario() {
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel revogar o acesso",
+        title: "Não foi possível revogar o acesso",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -169,7 +169,7 @@ export default function Prontuario() {
       downloadBlob(blob, fileName);
     } catch (error) {
       toast({
-        title: "Nao foi possivel baixar o documento",
+        title: "Não foi possível baixar o documento",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -220,7 +220,7 @@ export default function Prontuario() {
           <TabsList className="mb-4">
             <TabsTrigger value="historico" className="gap-2">
               <Stethoscope className="w-4 h-4" />
-              Historico
+              Histórico
             </TabsTrigger>
             <TabsTrigger value="documentos" className="gap-2">
               <FileText className="w-4 h-4" />
@@ -235,7 +235,7 @@ export default function Prontuario() {
           <TabsContent value="historico">
             {entriesQuery.isLoading ? (
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
-                <p className="text-muted-foreground">Carregando historico clinico...</p>
+                <p className="text-muted-foreground">Carregando histórico clínico...</p>
               </Card>
             ) : (entriesQuery.data?.length ?? 0) > 0 ? (
               <div className="space-y-4">
@@ -275,9 +275,9 @@ export default function Prontuario() {
               </div>
             ) : (
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
-                <p className="font-medium mb-2">Nenhum registro clinico ainda</p>
+                <p className="font-medium mb-2">Nenhum registro clínico ainda</p>
                 <p className="text-sm text-muted-foreground">
-                  As evolucoes e documentos aparecerao aqui conforme consultas e anexos forem registrados.
+                  As evoluções e os documentos aparecerão aqui conforme consultas e anexos forem registrados.
                 </p>
               </Card>
             )}
@@ -314,7 +314,7 @@ export default function Prontuario() {
               </div>
             ) : (
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
-                <p className="text-muted-foreground">Nenhum documento vinculado ao prontuario.</p>
+                <p className="text-muted-foreground">Nenhum documento vinculado ao prontuário.</p>
               </Card>
             )}
           </TabsContent>
@@ -330,14 +330,14 @@ export default function Prontuario() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Compartilhar prontuario</DialogTitle>
+                    <DialogTitle>Compartilhar prontuário</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Medico</Label>
+                      <Label>Médico</Label>
                       <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione um medico" />
+                          <SelectValue placeholder="Selecione um médico" />
                         </SelectTrigger>
                         <SelectContent>
                           {activeDoctors.map((doctor) => (
@@ -354,13 +354,13 @@ export default function Prontuario() {
                       <Textarea
                         value={grantReason}
                         onChange={(event) => setGrantReason(event.target.value)}
-                        placeholder="Ex: acompanhamento cardiologico, segunda opiniao..."
+                        placeholder="Ex.: acompanhamento cardiológico, segunda opinião..."
                       />
                     </div>
 
                     {specialties.length > 0 ? (
                       <div className="rounded-lg bg-secondary/40 p-3 text-sm text-muted-foreground">
-                        Especialidades disponiveis no cadastro: {specialties.join(", ")}.
+                        Especialidades disponíveis no cadastro: {specialties.join(", ")}. 
                       </div>
                     ) : null}
 
@@ -397,7 +397,7 @@ export default function Prontuario() {
                           </div>
                           <p className="text-sm text-muted-foreground">{grant.reason}</p>
                           <p className="text-sm text-muted-foreground">
-                            Inicio: {formatDateLabel(grant.startAt)}
+                            Início: {formatDateLabel(grant.startAt)}
                           </p>
                         </div>
 
@@ -421,7 +421,7 @@ export default function Prontuario() {
               <Card className="p-10 text-center bg-secondary/30 border-dashed">
                 <p className="font-medium mb-2">Nenhum acesso compartilhado</p>
                 <p className="text-sm text-muted-foreground">
-                  Compartilhe seu historico com medicos quando precisar de acompanhamento.
+                  Compartilhe seu histórico com médicos quando precisar de acompanhamento.
                 </p>
               </Card>
             )}

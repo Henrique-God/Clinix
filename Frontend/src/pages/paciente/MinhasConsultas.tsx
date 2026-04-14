@@ -94,12 +94,12 @@ export default function MinhasConsultas() {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "patient"] });
       toast({
         title: "Consulta atualizada",
-        description: "Os dados foram sincronizados com o backend.",
+        description: "Os dados foram atualizados com sucesso.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel atualizar a consulta",
+        title: "Não foi possível atualizar a consulta",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -214,7 +214,7 @@ export default function MinhasConsultas() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold">Minhas Consultas</h1>
-            <p className="text-muted-foreground">Acompanhe convites, consultas confirmadas e historico.</p>
+            <p className="text-muted-foreground">Acompanhe convites, consultas confirmadas e histórico.</p>
           </div>
 
           <Button onClick={() => navigate("/agendar/especialidade")}>
@@ -231,7 +231,7 @@ export default function MinhasConsultas() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{upcomingAppointments.length}</p>
-                <p className="text-xs text-muted-foreground">Proximas ou pendentes</p>
+                <p className="text-xs text-muted-foreground">Próximas ou pendentes</p>
               </div>
             </div>
           </Card>
@@ -297,14 +297,14 @@ export default function MinhasConsultas() {
         ) : appointmentsQuery.isError ? (
           <Card className="p-10 text-center bg-destructive/5 border-destructive/20">
             <p className="text-sm text-muted-foreground">
-              Nao foi possivel carregar suas consultas.
+              Não foi possível carregar suas consultas.
             </p>
           </Card>
         ) : (
           <Tabs defaultValue="proximas">
             <TabsList className="mb-4">
               <TabsTrigger value="proximas">Ativas</TabsTrigger>
-              <TabsTrigger value="historico">Historico</TabsTrigger>
+              <TabsTrigger value="historico">Histórico</TabsTrigger>
             </TabsList>
 
             <TabsContent value="proximas">
@@ -330,7 +330,7 @@ export default function MinhasConsultas() {
                   <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="font-medium mb-2">Nenhuma consulta ativa</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Agende sua proxima consulta pela Clinix.
+                    Agende sua próxima consulta pela Clinix.
                   </p>
                   <Button onClick={() => navigate("/agendar/especialidade")}>
                     Agendar consulta
@@ -347,7 +347,7 @@ export default function MinhasConsultas() {
               ) : (
                 <Card className="p-12 text-center">
                   <XCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">Nenhum historico de consultas ainda.</p>
+                  <p className="text-muted-foreground">Nenhum histórico de consultas ainda.</p>
                 </Card>
               )}
             </TabsContent>

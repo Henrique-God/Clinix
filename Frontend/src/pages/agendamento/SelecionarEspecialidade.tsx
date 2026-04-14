@@ -23,9 +23,9 @@ import { cn } from "@/lib/utils";
 
 const steps = [
   { id: "especialidade", label: "Especialidade" },
-  { id: "medico", label: "Medico" },
+  { id: "medico", label: "Médico" },
   { id: "data-hora", label: "Data e Hora" },
-  { id: "confirmacao", label: "Confirmacao" },
+  { id: "confirmacao", label: "Confirmação" },
 ];
 
 const specialtyIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -86,7 +86,7 @@ export default function SelecionarEspecialidade() {
             Selecione a especialidade
           </h1>
           <p className="text-muted-foreground text-center mb-8">
-            Escolha a area medica para encontrar profissionais com horarios publicos.
+            Escolha a área médica para encontrar profissionais com horários públicos.
           </p>
 
           <div className="relative max-w-lg mx-auto mb-8">
@@ -106,7 +106,7 @@ export default function SelecionarEspecialidade() {
           ) : doctorsQuery.isError ? (
             <Card className="p-8 text-center bg-destructive/5 border-destructive/20">
               <p className="text-sm text-muted-foreground">
-                Nao foi possivel carregar as especialidades disponiveis agora.
+                Não foi possível carregar as especialidades disponíveis agora.
               </p>
             </Card>
           ) : specialties.length > 0 ? (
@@ -143,7 +143,7 @@ export default function SelecionarEspecialidade() {
             <Card className="p-10 text-center bg-secondary/30 border-dashed mb-8">
               <p className="font-medium mb-2">Nenhuma especialidade encontrada</p>
               <p className="text-sm text-muted-foreground">
-                Tente outro termo de busca ou confira se existem medicos ativos cadastrados.
+                Tente outro termo de busca ou confira se existem médicos ativos cadastrados.
               </p>
             </Card>
           )}
@@ -153,7 +153,7 @@ export default function SelecionarEspecialidade() {
               Cancelar
             </Button>
             <Button onClick={handleNext} disabled={!selectedEspecialidade}>
-              Proximo
+              Próximo
             </Button>
           </div>
         </Card>

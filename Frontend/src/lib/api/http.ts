@@ -63,7 +63,7 @@ export async function requestJson<TResponse>(
           (payload as { title?: string; detail?: string; message?: string })
             ?.message ??
           (payload as { title?: string }).title ??
-          "Nao foi possivel concluir a requisicao.";
+          "Não foi possível concluir a requisição.";
 
     throw new ApiError(message, response.status, payload);
   }
@@ -90,7 +90,7 @@ export async function requestBlob(
   if (!response.ok) {
     const errorPayload = await response.text();
     throw new ApiError(
-      errorPayload || "Nao foi possivel baixar o arquivo.",
+      errorPayload || "Não foi possível baixar o arquivo.",
       response.status,
       errorPayload,
     );

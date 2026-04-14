@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -44,7 +45,7 @@ import {
   buildWeeklyCalendarItems,
   getDoctorWeekStart,
 } from "@/lib/doctor-schedule";
-import { formatTimeLabel } from "@/lib/date-utils";
+import { formatDateTime, formatTimeLabel } from "@/lib/date-utils";
 import { loadDirectoryUsers } from "@/lib/directory";
 
 function overlaps(startA: string, endA: string, startB: string, endB: string) {
@@ -92,8 +93,9 @@ export default function PainelMedico() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCalendarItemId, setSelectedCalendarItemId] = useState<string | null>(null);
   const [focusedAppointmentId, setFocusedAppointmentId] = useState<string | null>(null);
+  const [appointmentDialogItemId, setAppointmentDialogItemId] = useState<string | null>(null);
   const [blockForm, setBlockForm] = useState({
-    title: "Horario bloqueado",
+    title: "HorÃ¡rio bloqueado",
     description: "",
     date: format(new Date(), "yyyy-MM-dd"),
     startTime: "",
@@ -156,7 +158,7 @@ export default function PainelMedico() {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "calendar"] });
       setDialogOpen(false);
       setBlockForm({
-        title: "Horario bloqueado",
+        title: "HorÃ¡rio bloqueado",
         description: "",
         date: format(weekStart, "yyyy-MM-dd"),
         startTime: "",
@@ -164,12 +166,12 @@ export default function PainelMedico() {
       });
       toast({
         title: "Bloqueio criado",
-        description: "O periodo foi reservado na agenda do medico.",
+        description: "O perÃ­odo foi reservado na agenda do mÃ©dico.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel bloquear o horario",
+        title: "NÃ£o foi possÃ­vel bloquear o horÃ¡rio",
         description:
           error instanceof Error ? error.message : "Confira os dados e tente novamente.",
         variant: "destructive",
@@ -201,7 +203,7 @@ export default function PainelMedico() {
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel responder ao convite",
+        title: "NÃ£o foi possÃ­vel responder ao convite",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -218,13 +220,13 @@ export default function PainelMedico() {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "doctor"] });
       await queryClient.invalidateQueries({ queryKey: ["appointments", "calendar"] });
       toast({
-        title: "Consulta concluida",
-        description: "A consulta foi marcada como concluida e a integracao clinica foi acionada.",
+        title: "Consulta concluÃ­da",
+        description: "A consulta foi marcada como concluÃ­da e a integraÃ§Ã£o clÃ­nica foi acionada.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel concluir a consulta",
+        title: "NÃ£o foi possÃ­vel concluir a consulta",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -272,6 +274,8 @@ export default function PainelMedico() {
   const selectedPendingInvite =
     pendingInvites.find((appointment) => appointment.id === selectedCalendarItem?.appointmentId) ??
     null;
+  const selectedAppointmentForDialog =
+    appointments.find((appointment) => appointment.id === appointmentDialogItemId) ?? null;
 
   const uniquePatientsCount = new Set(appointments.map((appointment) => appointment.patientId)).size;
 
@@ -302,8 +306,8 @@ export default function PainelMedico() {
   function handleCreateBlockedSlot() {
     if (!blockForm.date || !blockForm.startTime || !blockForm.endTime || !blockForm.title.trim()) {
       toast({
-        title: "Campos obrigatorios",
-        description: "Informe data, horario inicial, final e titulo do bloqueio.",
+        title: "Campos obrigatÃ³rios",
+        description: "Informe data, horÃ¡rio inicial, final e tÃ­tulo do bloqueio.",
         variant: "destructive",
       });
       return;
@@ -312,11 +316,19 @@ export default function PainelMedico() {
     createBlockedSlotMutation.mutate();
   }
 
+  function handleSelectCalendarItem(item: WeeklyCalendarItem) {
+    setSelectedCalendarItemId(item.id);
+
+    if (item.appointmentId) {
+      setAppointmentDialogItemId(item.appointmentId);
+    }
+  }
+
   return (
     <DoctorLayout>
       <div className="animate-slide-up space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Ola, {profile?.name ?? "medico"}</h1>
+          <h1 className="text-2xl font-bold">OlÃ¡, {profile?.name ?? "mÃ©dico"}</h1>
           <p className="text-muted-foreground">Resumo da sua agenda Clinix, convites pendentes e consultas do dia.</p>
         </div>
 
@@ -383,7 +395,7 @@ export default function PainelMedico() {
             <div>
               <CardTitle>Agenda semanal</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Convites pendentes aparecem em destaque para facilitar a decisao. Disponibilidades ficam em verde e consultas confirmadas em azul.
+                Convites pendentes aparecem em destaque para facilitar a decisÃ£o. Disponibilidades ficam em verde e consultas confirmadas em azul.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -394,7 +406,7 @@ export default function PainelMedico() {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    Bloquear horario
+                    Bloquear horÃ¡rio
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -403,7 +415,7 @@ export default function PainelMedico() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Titulo</Label>
+                      <Label>TÃ­tulo</Label>
                       <Input
                         value={blockForm.title}
                         onChange={(event) =>
@@ -412,7 +424,7 @@ export default function PainelMedico() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Descricao</Label>
+                      <Label>DescriÃ§Ã£o</Label>
                       <Textarea
                         value={blockForm.description}
                         onChange={(event) =>
@@ -435,7 +447,7 @@ export default function PainelMedico() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Inicio</Label>
+                        <Label>InÃ­cio</Label>
                         <Input
                           type="time"
                           value={blockForm.startTime}
@@ -492,7 +504,7 @@ export default function PainelMedico() {
               days={weekDays}
               items={weeklyCalendarItems}
               selectedItemId={selectedCalendarItem?.id ?? null}
-              onSelectItem={(item) => setSelectedCalendarItemId(item.id)}
+              onSelectItem={handleSelectCalendarItem}
               emptyLabel="Nenhum evento cadastrado para esta semana."
             />
 
@@ -503,7 +515,7 @@ export default function PainelMedico() {
                   {format(parseISO(selectedCalendarItem.startTime), "EEEE, d 'de' MMMM", {
                     locale: ptBR,
                   })}{" "}
-                  • {formatTimeLabel(selectedCalendarItem.startTime)} -{" "}
+                  â€¢ {formatTimeLabel(selectedCalendarItem.startTime)} -{" "}
                   {formatTimeLabel(selectedCalendarItem.endTime)}
                 </p>
                 {selectedCalendarItem.subtitle ? (
@@ -583,7 +595,7 @@ export default function PainelMedico() {
                             {format(parseISO(appointment.startTime), "EEEE, d 'de' MMMM", {
                               locale: ptBR,
                             })}{" "}
-                            • {formatTimeLabel(appointment.startTime)} - {formatTimeLabel(appointment.endTime)}
+                            â€¢ {formatTimeLabel(appointment.startTime)} - {formatTimeLabel(appointment.endTime)}
                           </p>
                           <div className="flex flex-wrap gap-2 text-xs">
                             <span className="status-badge bg-secondary text-foreground">
@@ -669,7 +681,7 @@ export default function PainelMedico() {
                           <p className="font-medium">{getPatientName(appointment.patientId)}</p>
                           <p className="text-sm text-muted-foreground">{appointment.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            {formatTimeLabel(appointment.startTime)} • {getAppointmentStatusLabel(status)}
+                            {formatTimeLabel(appointment.startTime)} â€¢ {getAppointmentStatusLabel(status)}
                           </p>
                         </div>
                       </div>
@@ -678,7 +690,7 @@ export default function PainelMedico() {
                           variant="outline"
                           onClick={() => navigate(`/medico/prontuario/${appointment.patientId}`)}
                         >
-                          Ver prontuario
+                          Ver prontuário
                         </Button>
                         {canComplete ? (
                           <Button
@@ -701,6 +713,108 @@ export default function PainelMedico() {
             )}
           </CardContent>
         </Card>
+
+        <Dialog
+          open={Boolean(selectedAppointmentForDialog)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAppointmentDialogItemId(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{selectedAppointmentForDialog?.title ?? "Detalhes da consulta"}</DialogTitle>
+              <DialogDescription>
+                Confira as informaÃ§Ãµes principais desta consulta e acesse o prontuÃ¡rio do paciente.
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedAppointmentForDialog ? (
+              <div className="space-y-4">
+                <div className="rounded-xl bg-secondary/30 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Paciente</p>
+                  <p className="mt-1 font-medium">
+                    {getPatientName(selectedAppointmentForDialog.patientId)}
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Data e horÃ¡rio</p>
+                    <p className="mt-1 font-medium">
+                      {formatDateTime(selectedAppointmentForDialog.startTime)} â€¢{" "}
+                      {formatTimeLabel(selectedAppointmentForDialog.endTime)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                    <p className="mt-1 font-medium">
+                      {getAppointmentStatusLabel(
+                        resolveAppointmentStatus(selectedAppointmentForDialog.status),
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedAppointmentForDialog.location ? (
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Local</p>
+                    <p className="mt-1 font-medium">{selectedAppointmentForDialog.location}</p>
+                  </div>
+                ) : null}
+
+                {selectedAppointmentForDialog.description ? (
+                  <div className="rounded-xl bg-secondary/30 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">ObservaÃ§Ãµes</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedAppointmentForDialog.description}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAppointmentDialogItemId(null);
+                      navigate(`/medico/prontuario/${selectedAppointmentForDialog.patientId}`);
+                    }}
+                  >
+                    Ir para o prontuÃ¡rio
+                  </Button>
+                  {resolveAppointmentStatus(selectedAppointmentForDialog.status) === "PendingAcceptance" ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          respondInviteMutation.mutate({
+                            appointmentId: selectedAppointmentForDialog.id,
+                            action: "reject",
+                          })
+                        }
+                        disabled={respondInviteMutation.isPending}
+                      >
+                        Recusar
+                      </Button>
+                      <Button
+                        onClick={() =>
+                          respondInviteMutation.mutate({
+                            appointmentId: selectedAppointmentForDialog.id,
+                            action: "accept",
+                          })
+                        }
+                        disabled={respondInviteMutation.isPending}
+                      >
+                        Aceitar
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </div>
     </DoctorLayout>
   );

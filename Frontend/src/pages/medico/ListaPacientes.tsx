@@ -79,7 +79,7 @@ export default function ListaPacientes() {
           <div>
             <h1 className="text-2xl font-bold">Pacientes</h1>
             <p className="text-muted-foreground">
-              Pessoas com relacionamento de consulta no backend de agendamentos.
+              Pessoas com consultas confirmadas ou concluídas com você.
             </p>
           </div>
 
@@ -113,7 +113,7 @@ export default function ListaPacientes() {
                       <h3 className="font-medium">{patient.name}</h3>
                       <div className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
                         <span>{patient.totalAppointments} consulta(s)</span>
-                        <span>{patient.latestAppointment ? formatDateLabel(patient.latestAppointment) : "Sem ultima consulta"}</span>
+                        <span>{patient.latestAppointment ? formatDateLabel(patient.latestAppointment) : "Sem última consulta"}</span>
                       </div>
                     </div>
                   </div>
@@ -121,7 +121,7 @@ export default function ListaPacientes() {
                   <div className="flex items-center gap-2 sm:gap-4">
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
-                      <span className="hidden sm:inline">Ultima consulta:</span>
+                      <span className="hidden sm:inline">Última consulta:</span>
                       {patient.latestAppointment ? formatDateLabel(patient.latestAppointment, "d/MM/yyyy") : "—"}
                     </div>
                     <Button
@@ -130,7 +130,7 @@ export default function ListaPacientes() {
                       onClick={() => navigate(`/medico/prontuario/${patient.userId}`)}
                     >
                       <FileText className="w-4 h-4 mr-2" />
-                      Prontuario
+                      Prontuário
                     </Button>
                   </div>
                 </div>

@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 
 const steps = [
   { id: "especialidade", label: "Especialidade" },
-  { id: "medico", label: "Medico" },
+  { id: "medico", label: "Médico" },
   { id: "data-hora", label: "Data e Hora" },
-  { id: "confirmacao", label: "Confirmacao" },
+  { id: "confirmacao", label: "Confirmação" },
 ];
 
 export default function SelecionarDataHora() {
@@ -107,10 +107,10 @@ export default function SelecionarDataHora() {
 
         <Card className="p-6 sm:p-8 animate-slide-up shadow-card">
           <h1 className="text-2xl font-bold text-center mb-2">
-            Selecione data e horario
+            Selecione data e horário
           </h1>
           <p className="text-muted-foreground text-center mb-8">
-            Escolha um horario publico disponivel para enviar o convite de consulta.
+            Escolha um horário público disponível para enviar o convite de consulta.
           </p>
 
           <div className="flex items-center justify-between mb-6">
@@ -149,7 +149,7 @@ export default function SelecionarDataHora() {
                   </div>
                   <div className="text-lg font-semibold">{format(day, "d")}</div>
                   <div className="text-xs mt-1">
-                    {hasSlots ? `${slotsByDate.get(dateKey)?.length ?? 0} horarios` : "Sem vagas"}
+                    {hasSlots ? `${slotsByDate.get(dateKey)?.length ?? 0} horários` : "Sem vagas"}
                   </div>
                 </button>
               );
@@ -158,18 +158,18 @@ export default function SelecionarDataHora() {
 
           {availableSlotsQuery.isLoading ? (
             <Card className="p-8 text-center bg-secondary/30 border-dashed mb-8">
-              <p className="text-muted-foreground">Carregando horarios...</p>
+              <p className="text-muted-foreground">Carregando horários...</p>
             </Card>
           ) : availableSlotsQuery.isError ? (
             <Card className="p-8 text-center bg-destructive/5 border-destructive/20 mb-8">
               <p className="text-sm text-muted-foreground">
-                Nao foi possivel carregar os horarios disponiveis.
+                Não foi possível carregar os horários disponíveis.
               </p>
             </Card>
           ) : selectedDateSlots.length > 0 && selectedDate ? (
             <div className="mb-8 animate-fade-in">
               <h3 className="font-medium mb-4 text-center">
-                Horarios para{" "}
+                Horários para{" "}
                 {format(parseISO(`${selectedDate}T00:00:00`), "EEEE, d 'de' MMMM", {
                   locale: ptBR,
                 })}
@@ -192,7 +192,7 @@ export default function SelecionarDataHora() {
             </div>
           ) : (
             <Card className="p-8 text-center bg-secondary/30 border-dashed mb-8">
-              <p className="font-medium mb-2">Nenhum horario publico nesta semana</p>
+                <p className="font-medium mb-2">Nenhum horário público nesta semana</p>
               <p className="text-sm text-muted-foreground">
                 Avance para outra semana ou escolha outro profissional.
               </p>
@@ -204,7 +204,7 @@ export default function SelecionarDataHora() {
               Voltar
             </Button>
             <Button onClick={handleNext} disabled={!selectedSlot}>
-              Proximo
+              Próximo
             </Button>
           </div>
         </Card>

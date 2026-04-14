@@ -53,7 +53,7 @@ export default function CadastroMedico() {
     if (formData.senha !== formData.confirmarSenha) {
       toast({
         title: "Senhas diferentes",
-        description: "Confira a confirmacao da senha antes de continuar.",
+        description: "Confira a confirmação da senha antes de continuar.",
         variant: "destructive",
       });
       return;
@@ -87,7 +87,7 @@ export default function CadastroMedico() {
       navigate(resolveHomePath(session.userType), { replace: true });
     } catch (error) {
       toast({
-        title: "Nao foi possivel criar sua conta",
+        title: "Não foi possível criar sua conta",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -114,7 +114,7 @@ export default function CadastroMedico() {
             <div className="flex justify-center mb-4">
               <Logo size="md" />
             </div>
-            <CardTitle className="text-2xl">Cadastro de Medico</CardTitle>
+            <CardTitle className="text-2xl">Cadastro de Médico</CardTitle>
             <CardDescription>
               Preencha os dados profissionais suportados pelo cadastro Clinix
             </CardDescription>
@@ -141,7 +141,7 @@ export default function CadastroMedico() {
                   <Input
                     id="crm"
                     name="crm"
-                    placeholder="Numero do CRM"
+                    placeholder="Número do CRM"
                     value={formData.crm}
                     onChange={handleChange}
                     className="input-focus"
@@ -248,8 +248,8 @@ export default function CadastroMedico() {
 
               <div className="bg-secondary/50 rounded-lg p-4 mt-4">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Proximo passo:</strong> apos o cadastro, voce podera
-                  configurar seus horarios de atendimento no painel.
+                  <strong>Próximo passo:</strong> após o cadastro, você poderá
+                  configurar seus horários de atendimento no painel.
                 </p>
               </div>
 

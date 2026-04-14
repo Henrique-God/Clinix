@@ -19,9 +19,9 @@ interface DoctorLayoutProps {
 
 const menuItems = [
   { id: "agenda", label: "Agenda", icon: Calendar, path: "/medico/painel" },
-  { id: "horarios", label: "Horarios", icon: Clock, path: "/medico/horarios" },
+  { id: "horarios", label: "Horários", icon: Clock, path: "/medico/horarios" },
   { id: "pacientes", label: "Pacientes", icon: Users, path: "/medico/pacientes" },
-  { id: "prontuarios", label: "Prontuarios", icon: FileText, path: "/medico/prontuarios" },
+  { id: "prontuarios", label: "Prontuários", icon: FileText, path: "/medico/prontuarios" },
   { id: "perfil", label: "Meu perfil", icon: UserCircle2, path: "/medico/perfil" },
   { id: "assistente", label: "Assistente", icon: MessageSquare, path: "/medico/assistente" },
 ];
@@ -75,7 +75,7 @@ export function DoctorLayout({ children }: DoctorLayoutProps) {
 
         <div className="border-t border-border p-4">
           <div className="rounded-2xl bg-secondary/50 px-4 py-3">
-            <p className="text-sm font-medium">{profile?.name ?? "Medico"}</p>
+            <p className="text-sm font-medium">{profile?.name ?? "Médico"}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {profile?.professionalRegister ?? profile?.email ?? ""}
             </p>

@@ -81,19 +81,63 @@ describe("doctor schedule helpers", () => {
       ],
     );
 
-    expect(items).toHaveLength(3);
-    expect(items[0]).toMatchObject({
-      source: "availability",
-      variant: "availability-public",
+    expect(items).toHaveLength(4);
+    expect(items.filter((item) => item.source === "availability")).toHaveLength(2);
+    expect(items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "calendar-event",
+          variant: "appointment-pending",
+          appointmentId: "appointment-1",
+        }),
+        expect.objectContaining({
+          source: "calendar-event",
+          variant: "blocked",
+        }),
+      ]),
+    );
+  });
+
+  it("splits an availability block when a blocking appointment occupies part of the slot", () => {
+    const items = buildWeeklyCalendarItems(
+      [
+        {
+          id: "availability-2",
+          doctorId: "doctor-1",
+          startTime: "2026-04-15T09:00:00.000Z",
+          endTime: "2026-04-15T12:00:00.000Z",
+          visibility: "Public",
+          createdAt: "2026-04-10T00:00:00.000Z",
+          updatedAt: "2026-04-10T00:00:00.000Z",
+        },
+      ],
+      [
+        {
+          id: "event-3",
+          doctorId: "doctor-1",
+          type: "Appointment",
+          title: "Consulta confirmada",
+          startTime: "2026-04-15T10:00:00.000Z",
+          endTime: "2026-04-15T10:30:00.000Z",
+          blocksScheduling: true,
+          appointmentId: "appointment-3",
+          appointmentStatus: "Accepted",
+          createdAt: "2026-04-10T00:00:00.000Z",
+          updatedAt: "2026-04-10T00:00:00.000Z",
+        },
+      ],
+    );
+
+    const availabilityItems = items.filter((item) => item.source === "availability");
+
+    expect(availabilityItems).toHaveLength(2);
+    expect(availabilityItems[0]).toMatchObject({
+      startTime: "2026-04-15T09:00:00.000Z",
+      endTime: "2026-04-15T10:00:00.000Z",
     });
-    expect(items[1]).toMatchObject({
-      source: "calendar-event",
-      variant: "appointment-pending",
-      appointmentId: "appointment-1",
-    });
-    expect(items[2]).toMatchObject({
-      source: "calendar-event",
-      variant: "blocked",
+    expect(availabilityItems[1]).toMatchObject({
+      startTime: "2026-04-15T10:30:00.000Z",
+      endTime: "2026-04-15T12:00:00.000Z",
     });
   });
 });

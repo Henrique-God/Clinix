@@ -11,7 +11,7 @@ interface PatientLayoutProps {
 
 const menuItems = [
   { id: "consultas", label: "Agendamentos", icon: Calendar, path: "/paciente/consultas" },
-  { id: "prontuario", label: "Prontuario", icon: FileText, path: "/paciente/prontuario" },
+  { id: "prontuario", label: "Prontuário", icon: FileText, path: "/paciente/prontuario" },
   { id: "documentos", label: "Documentos", icon: FolderOpen, path: "/paciente/documentos" },
   { id: "treinos", label: "Treinos", icon: Dumbbell, path: "/paciente/treinos", premium: true },
   { id: "strava", label: "Strava", icon: Activity, path: "/paciente/strava", premium: true },

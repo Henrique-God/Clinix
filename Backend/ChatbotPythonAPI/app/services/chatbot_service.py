@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from ..auth import CurrentActor
 from ..config import Settings
 from ..models import ChatIntent
+from .appointment_matching import count_cancelable_appointments, resolve_cancel_target
 from .appointments_client import AppointmentsClient
 from .chat_memory_store import ChatMemoryStore
 from .rag_service import RagService
@@ -330,7 +331,32 @@ class ChatbotService:
             appointment_id = parameters.get("appointment_id")
 
             if not appointment_id:
-                return {"action_result": {"error": "Para cancelar, por favor informe o appointment_id."}}
+                appointments = (
+                    await self._appointments_client.get_doctor_appointments(actor.token)
+                    if actor.role.lower() == "doctor"
+                    else await self._appointments_client.get_patient_appointments(actor.token)
+                )
+                matched_appointment = resolve_cancel_target(appointments, state["message"])
+
+                if matched_appointment is None:
+                    cancellable_count = count_cancelable_appointments(appointments)
+                    if cancellable_count == 0:
+                        return {
+                            "action_result": {
+                                "error": "Não encontrei consultas futuras que possam ser canceladas neste momento."
+                            }
+                        }
+
+                    return {
+                        "action_result": {
+                            "error": (
+                                "Encontrei mais de uma consulta que pode ser cancelada. "
+                                "Me diga o nome da consulta ou a data e o horário desejados."
+                            )
+                        }
+                    }
+
+                appointment_id = matched_appointment.get("id")
             
             cancelled = await self._appointments_client.cancel_appointment(actor.token, str(appointment_id))
 

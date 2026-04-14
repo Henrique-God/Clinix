@@ -89,13 +89,13 @@ export default function GestaoHorarios() {
         visibility: "Public",
       });
       toast({
-        title: "Horarios adicionados",
-        description: "As janelas selecionadas ja podem ser usadas no agendamento.",
+        title: "Horários adicionados",
+        description: "As janelas selecionadas já podem ser usadas no agendamento.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel salvar os horarios",
+        title: "Não foi possível salvar os horários",
         description:
           error instanceof Error ? error.message : "Confira os dados e tente novamente.",
         variant: "destructive",
@@ -109,13 +109,13 @@ export default function GestaoHorarios() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "availability"] });
       toast({
-        title: "Horario removido",
+        title: "Horário removido",
         description: "A disponibilidade foi removida com sucesso.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Nao foi possivel remover o horario",
+        title: "Não foi possível remover o horário",
         description:
           error instanceof Error ? error.message : "Tente novamente em instantes.",
         variant: "destructive",
@@ -175,7 +175,7 @@ export default function GestaoHorarios() {
           ) : (
             <>
               <Globe2 className="mr-1 inline h-3.5 w-3.5" />
-              Publica
+              Pública
             </>
           )}
         </span>
@@ -196,9 +196,9 @@ export default function GestaoHorarios() {
     <DoctorLayout>
       <div className="animate-slide-up space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Gestao de horarios disponiveis</h1>
+          <h1 className="text-2xl font-bold">Gestão de horários disponíveis</h1>
           <p className="text-muted-foreground">
-            Selecione varias datas de uma vez e acompanhe a semana em uma visao estilo calendario.
+            Selecione várias datas de uma vez e acompanhe a semana em uma visão estilo calendário.
           </p>
         </div>
 
@@ -207,7 +207,7 @@ export default function GestaoHorarios() {
             <CardHeader>
               <CardTitle className="text-lg">Nova disponibilidade</CardTitle>
               <CardDescription>
-                O backend trabalha com intervalos concretos de data e hora. Aqui voce pode repetir o mesmo horario em varias datas.
+                Cadastre períodos específicos de atendimento e repita o mesmo horário em várias datas quando precisar.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -237,13 +237,13 @@ export default function GestaoHorarios() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Clique em varias datas para liberar o mesmo horario em todos esses dias.
+                  Clique em várias datas para liberar o mesmo horário em todos esses dias.
                 </p>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Inicio</Label>
+                  <Label>Início</Label>
                   <Input
                     type="time"
                     value={formData.startTime}
@@ -279,7 +279,7 @@ export default function GestaoHorarios() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Public">Publica</SelectItem>
+                    <SelectItem value="Public">Pública</SelectItem>
                     <SelectItem value="Private">Privada</SelectItem>
                   </SelectContent>
                 </Select>
@@ -291,7 +291,7 @@ export default function GestaoHorarios() {
                 disabled={createAvailabilityMutation.isPending}
               >
                 <CalendarPlus className="mr-2 h-4 w-4" />
-                {createAvailabilityMutation.isPending ? "Salvando..." : "Adicionar horarios"}
+                {createAvailabilityMutation.isPending ? "Salvando..." : "Adicionar horários"}
               </Button>
             </CardContent>
           </Card>
@@ -300,7 +300,7 @@ export default function GestaoHorarios() {
             <CardHeader>
               <CardTitle className="text-lg">Resumo da semana</CardTitle>
               <CardDescription>
-                Veja os blocos disponiveis, as consultas agendadas e os bloqueios em uma visao unica.
+                Veja os blocos disponíveis, as consultas agendadas e os bloqueios em uma visão única.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
@@ -327,7 +327,7 @@ export default function GestaoHorarios() {
             <div>
               <CardTitle className="text-lg">Calendario semanal</CardTitle>
               <CardDescription>
-                Visao semanal semelhante a um calendario de agenda, com blocos por horario.
+                Visão semanal semelhante a um calendário de agenda, com blocos por horário.
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
