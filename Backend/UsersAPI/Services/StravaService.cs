@@ -191,7 +191,6 @@ public class StravaService : IStravaService
             catch (DbUpdateException ex)
                 when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
             {
-                context.ChangeTracker.Clear();
                 synced = 0;
             }
         }
