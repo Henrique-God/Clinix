@@ -220,6 +220,11 @@ class ChatbotService:
                         "Para scheduling com operation=schedule quando Role for User: "
                         "primeiro ofereca opcoes de medicos e horarios proximos disponiveis. "
                         "Nao peca nomes de variaveis tecnicas.\n"
+                        "Para scheduling com operation=schedule quando Role for Doctor: "
+                        "extraia patient_id ou patient_name e start_time quando existirem. "
+                        "Se faltar horario, o chatbot vai perguntar depois.\n"
+                        "Quando Role for Doctor e o usuario perguntar pelos horarios disponiveis, "
+                        "use scheduling com operation=schedule e ask_availability=true.\n"
                         "Se o usuario escolher uma opcao numerada, use parameters.option_index.\n"
                         "Se o usuario informar medico + horario de inicio diretamente, use doctor_id/doctor_name e start_time.\n"
                         "Nao solicite horario de termino para o paciente.\n"
@@ -340,7 +345,11 @@ class ChatbotService:
             plan = self._fallback_plan(message)
 
         plan.action = self._normalize_action(plan.action)
-        if self._is_patient_role(actor.role) and self._is_specialty_catalog_request(message):
+        if self._is_doctor_role(actor.role) and self._contains_doctor_availability_intent(message):
+            plan.action = "scheduling"
+            plan.parameters["operation"] = "schedule"
+            plan.parameters["ask_availability"] = True
+        elif self._is_patient_role(actor.role) and self._is_specialty_catalog_request(message):
             plan.action = "scheduling"
             plan.parameters["operation"] = "schedule"
             plan.parameters["list_specialties"] = True
@@ -359,6 +368,9 @@ class ChatbotService:
                 plan.action = "scheduling"
                 plan.parameters["operation"] = "schedule"
                 plan.parameters["specialty"] = specialty_hint
+        elif self._is_doctor_role(actor.role) and self._was_waiting_for_doctor_scheduling_details(state.get("history", [])):
+            plan.action = "scheduling"
+            plan.parameters["operation"] = "schedule"
         else:
             option_index = self._extract_option_index({}, message)
             if option_index is not None:
@@ -518,27 +530,31 @@ class ChatbotService:
             context["next_step"] = "show_options"
             return {"scheduling_context": context}
 
-        payload = self._build_invite_payload(parameters, actor)
-        if payload is None:
-            if self._is_doctor_role(actor.role):
+        if self._is_doctor_role(actor.role):
+            doctor_context = await self._build_doctor_scheduling_context(
+                actor=actor,
+                parameters=parameters,
+                message=message,
+                history=history,
+            )
+            if doctor_context.get("next_step") != "create":
                 return {
                     "action_result": {
-                        "error": "Para agendar, me informe quem e o paciente e qual horario de inicio da consulta.",
+                        "operation": "schedule",
+                        "status": doctor_context.get("status", "needs_input"),
+                        "message": doctor_context.get(
+                            "message",
+                            "Para agendar, me informe o paciente e o horario da consulta.",
+                        ),
                     },
                     "scheduling_context": {"next_step": "compose_reply"},
                 }
-            return {
-                "action_result": {"error": "Somente medicos e pacientes podem criar convites de consulta."},
-                "scheduling_context": {"next_step": "compose_reply"},
-            }
+
+            return {"scheduling_context": doctor_context}
 
         return {
-            "scheduling_context": {
-                "next_step": "create",
-                "operation": "schedule",
-                "role": actor.role,
-                "payload": payload,
-            }
+            "action_result": {"error": "Somente medicos e pacientes podem criar convites de consulta."},
+            "scheduling_context": {"next_step": "compose_reply"},
         }
 
     async def _scheduling_ask_specialty_node(self, state: ChatGraphState) -> ChatGraphState:
@@ -848,6 +864,114 @@ class ChatbotService:
             ]
         )
 
+    @staticmethod
+    def _contains_doctor_availability_intent(message: str) -> bool:
+        lowered = str(message or "").lower()
+        return any(
+            token in lowered
+            for token in [
+                "horarios disponiveis",
+                "horários disponíveis",
+                "horario disponivel",
+                "horário disponível",
+                "horarios livres",
+                "horários livres",
+                "horario livre",
+                "horário livre",
+                "agenda livre",
+                "tenho de horario",
+                "tenho de horário",
+                "tem algum horario",
+                "tem algum horário",
+                "tem horario",
+                "tem horário",
+            ]
+        )
+
+    @staticmethod
+    def _contains_more_availability_intent(message: str) -> bool:
+        lowered = str(message or "").lower()
+        return any(
+            token in lowered
+            for token in [
+                "outros horarios",
+                "outros horários",
+                "outras opcoes",
+                "outras opções",
+                "mais horarios",
+                "mais horários",
+                "alem desses",
+                "além desses",
+                "alem dos que voce mostrou",
+                "além dos que você mostrou",
+                "outro dia",
+                "outra data",
+                "sem ser",
+            ]
+        )
+
+    @staticmethod
+    def _weekday_token_map() -> dict[str, int]:
+        return {
+            "segunda feira": 0,
+            "segunda": 0,
+            "terca feira": 1,
+            "terca": 1,
+            "terça feira": 1,
+            "terça": 1,
+            "quarta feira": 2,
+            "quarta": 2,
+            "quinta feira": 3,
+            "quinta": 3,
+            "sexta feira": 4,
+            "sexta": 4,
+            "sabado": 5,
+            "sábado": 5,
+            "domingo": 6,
+        }
+
+    @classmethod
+    def _extract_weekday_filter(cls, message: str) -> int | None:
+        normalized = cls._normalize_match_text(message)
+        if not normalized:
+            return None
+
+        ordered_tokens = sorted(cls._weekday_token_map().items(), key=lambda item: len(item[0]), reverse=True)
+
+        explicit_pattern = re.compile(
+            r"\b(?:na|no|para|em)\s+(segunda feira|segunda|terca feira|terca|terça feira|terça|quarta feira|quarta|quinta feira|quinta|sexta feira|sexta|sabado|sábado|domingo)\b"
+        )
+        explicit_match = explicit_pattern.search(normalized)
+        if explicit_match:
+            explicit_token = explicit_match.group(1).strip()
+            mapped = cls._weekday_token_map().get(explicit_token)
+            if mapped is not None:
+                return mapped
+
+        for token, weekday in ordered_tokens:
+            if re.search(rf"\b{re.escape(token)}\b", normalized):
+                return weekday
+
+        return None
+
+    @classmethod
+    def _extract_excluded_weekday(cls, message: str) -> int | None:
+        normalized = cls._normalize_match_text(message)
+        if not normalized:
+            return None
+
+        for token, weekday in sorted(cls._weekday_token_map().items(), key=lambda item: len(item[0]), reverse=True):
+            if (
+                f"sem ser na {token}" in normalized
+                or f"sem ser no {token}" in normalized
+                or f"sem ser {token}" in normalized
+                or f"exceto {token}" in normalized
+                or f"menos {token}" in normalized
+            ):
+                return weekday
+
+        return None
+
     @classmethod
     def _fallback_plan(cls, message: str) -> OrchestrationPlan:
         lowered = (message or "").lower()
@@ -987,6 +1111,228 @@ class ChatbotService:
 
         return context
 
+    async def _build_doctor_scheduling_context(
+        self,
+        actor: CurrentActor,
+        parameters: dict[str, Any],
+        message: str,
+        history: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        duration_minutes = self._coerce_duration_minutes(
+            self._first_param(parameters, "duration_minutes", "durationMinutes"),
+            default_value=30,
+        )
+        option_index = self._extract_option_index(parameters, message)
+        recent_options = self._parse_recent_doctor_availability_options_from_history(history)
+        selected_from_history = self._select_recent_doctor_availability_option_from_history(
+            history=history,
+            message=message,
+            option_index=option_index,
+        )
+        selected_start_time = selected_from_history.get("start_time") if selected_from_history else None
+
+        patient_id = self._first_param(parameters, "patient_id", "patientId")
+        patient_name = self._first_param(parameters, "patient_name", "patientName", "patient")
+        if not patient_name:
+            patient_name = self._extract_patient_name_hint(message)
+        if not patient_name:
+            patient_name = self._infer_recent_patient_name_from_history(history)
+
+        asks_more_availability = self._contains_more_availability_intent(message)
+        asks_availability = (
+            bool(parameters.get("ask_availability"))
+            or self._contains_doctor_availability_intent(message)
+            or asks_more_availability
+        )
+        excluded_weekday = self._extract_excluded_weekday(message)
+        weekday_filter = self._extract_weekday_filter(message)
+        if excluded_weekday is not None and weekday_filter == excluded_weekday:
+            weekday_filter = None
+
+        # If the doctor selected a listed option, trust that slot over planner-generated timestamps.
+        if isinstance(selected_start_time, datetime):
+            start_time = selected_start_time
+        else:
+            # Prefer explicit time from the user message over planner-proposed timestamps.
+            start_time = self._extract_start_time_from_text(message)
+            if start_time is None and not asks_availability and not recent_options:
+                start_time = self._parse_iso_datetime(self._first_param(parameters, "start_time", "startTime"))
+
+        if option_index is not None and recent_options and selected_from_history is None:
+            return {
+                "next_step": "compose_reply",
+                "status": "availability_invalid_option",
+                "message": self._format_doctor_availability_message(recent_options, invalid_option=option_index),
+            }
+
+        if start_time is not None:
+            min_future = datetime.now(timezone.utc) + timedelta(minutes=1)
+            if start_time <= min_future:
+                return {
+                    "next_step": "compose_reply",
+                    "status": "past_start_time",
+                    "message": (
+                        "Esse horario ja passou. Me informe um horario futuro "
+                        "ou escolha uma das opcoes de horarios disponiveis."
+                    ),
+                }
+
+        if start_time is None and asks_availability:
+            try:
+                from_utc: datetime | None = None
+                if asks_more_availability and recent_options:
+                    last_start = max(
+                        (
+                            item.get("start_time")
+                            for item in recent_options
+                            if isinstance(item.get("start_time"), datetime)
+                        ),
+                        default=None,
+                    )
+                    if isinstance(last_start, datetime):
+                        from_utc = last_start + timedelta(minutes=1)
+
+                options = await self._build_doctor_availability_options(
+                    token=actor.token,
+                    doctor_id=actor.user_id,
+                    duration_minutes=duration_minutes,
+                    from_utc=from_utc,
+                    weekday_filter=weekday_filter,
+                    excluded_weekday=excluded_weekday,
+                )
+            except Exception as exc:
+                return {
+                    "next_step": "compose_reply",
+                    "status": "availability_error",
+                    "message": self._format_service_error("Nao consegui consultar seus horarios disponiveis.", exc),
+                }
+
+            if not options:
+                if weekday_filter is not None:
+                    requested_day = PT_WEEKDAYS[weekday_filter]
+                    return {
+                        "next_step": "compose_reply",
+                        "status": "availability_day_unavailable",
+                        "message": (
+                            f"No momento nao encontrei horarios disponiveis para {requested_day}. "
+                            "Se quiser, posso mostrar outros dias."
+                        ),
+                    }
+                if asks_more_availability:
+                    return {
+                        "next_step": "compose_reply",
+                        "status": "availability_no_more",
+                        "message": (
+                            "No momento nao encontrei outros horarios alem dos que ja te mostrei. "
+                            "Se quiser, posso tentar novamente mais tarde."
+                        ),
+                    }
+                return {
+                    "next_step": "compose_reply",
+                    "status": "availability_unavailable",
+                    "message": (
+                        "No momento nao encontrei horarios disponiveis na sua agenda para os proximos dias."
+                    ),
+                }
+
+            return {
+                "next_step": "compose_reply",
+                "status": "availability_listed",
+                "message": self._format_doctor_availability_message(options),
+            }
+
+        if not patient_id and not patient_name:
+            return {
+                "next_step": "compose_reply",
+                "status": "needs_patient",
+                "message": "Para agendar, me diga o nome completo do paciente.",
+            }
+
+        resolved_patient_name = str(patient_name or "").strip()
+        if not patient_id:
+            try:
+                matches = await self._users_client.get_patients(
+                    token=actor.token,
+                    search=resolved_patient_name,
+                    limit=5,
+                )
+            except Exception as exc:
+                return {
+                    "next_step": "compose_reply",
+                    "status": "patient_lookup_error",
+                    "message": self._format_service_error("Nao consegui buscar o paciente agora.", exc),
+                }
+            if not matches:
+                return {
+                    "next_step": "compose_reply",
+                    "status": "patient_not_found",
+                    "message": (
+                        f"Nao encontrei paciente com o nome \"{resolved_patient_name}\". "
+                        "Me informe o nome completo para eu tentar novamente."
+                    ),
+                }
+
+            selected_patient = self._select_patient_match_by_name(resolved_patient_name, matches)
+            if selected_patient is None:
+                suggestions = [
+                    f"- {str(item.get('name', '')).strip()} ({str(item.get('email', '')).strip()})"
+                    for item in matches[:3]
+                    if str(item.get("name", "")).strip()
+                ]
+                if not suggestions:
+                    suggestions = [
+                        f"- {str(item.get('name', '')).strip()}"
+                        for item in matches[:3]
+                        if str(item.get("name", "")).strip()
+                    ]
+                suggestion_text = "\n".join(suggestions)
+                return {
+                    "next_step": "compose_reply",
+                    "status": "patient_ambiguous",
+                    "message": (
+                        "Encontrei mais de um paciente com nome parecido. "
+                        "Me diga o nome completo do paciente para confirmar.\n"
+                        f"{suggestion_text}"
+                    ),
+                }
+
+            patient_id = str(selected_patient.get("userId", "")).strip()
+            resolved_patient_name = str(selected_patient.get("name", "")).strip() or resolved_patient_name
+
+        if start_time is None:
+            patient_reference = resolved_patient_name or "esse paciente"
+            return {
+                "next_step": "compose_reply",
+                "status": "needs_start_time",
+                "message": (
+                    f"Perfeito. Qual a data e horario de inicio da consulta para {patient_reference}? "
+                    "Se puder, me envie no formato AAAA-MM-DD HH:MM."
+                ),
+            }
+
+        normalized_parameters = dict(parameters)
+        normalized_parameters["patient_id"] = str(patient_id)
+        normalized_parameters["start_time"] = self._to_utc_iso(start_time)
+        normalized_parameters["duration_minutes"] = duration_minutes
+        payload = self._build_invite_payload(normalized_parameters, actor)
+        if payload is None:
+            return {
+                "next_step": "compose_reply",
+                "status": "invalid_schedule_data",
+                "message": (
+                    "Nao consegui validar os dados do agendamento. "
+                    "Me confirme o nome do paciente e o horario de inicio."
+                ),
+            }
+
+        return {
+            "next_step": "create",
+            "operation": "schedule",
+            "role": actor.role,
+            "payload": payload,
+            "parameters": normalized_parameters,
+        }
+
     async def _build_patient_schedule_options(
         self,
         token: str,
@@ -1091,6 +1437,81 @@ class ChatbotService:
             option["option_index"] = index
 
         return selected
+
+    async def _build_doctor_availability_options(
+        self,
+        token: str,
+        doctor_id: str,
+        duration_minutes: int,
+        from_utc: datetime | None = None,
+        weekday_filter: int | None = None,
+        excluded_weekday: int | None = None,
+    ) -> list[dict[str, Any]]:
+        window_start = (from_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+        now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+        if window_start < now_utc:
+            window_start = now_utc
+        to_utc = window_start + timedelta(days=21)
+        slots = await self._appointments_client.get_available_slots(
+            token=token,
+            doctor_id=doctor_id,
+            from_utc=self._to_utc_iso(window_start),
+            to_utc=self._to_utc_iso(to_utc),
+            duration_minutes=duration_minutes,
+        )
+
+        candidates: list[dict[str, Any]] = []
+        for slot in slots:
+            start_time = self._parse_iso_datetime(slot.get("startTime"))
+            end_time = self._parse_iso_datetime(slot.get("endTime"))
+            if not start_time or not end_time or end_time <= start_time:
+                continue
+            local_weekday = start_time.astimezone(timezone(timedelta(hours=-3))).weekday()
+            if weekday_filter is not None and local_weekday != weekday_filter:
+                continue
+            if excluded_weekday is not None and local_weekday == excluded_weekday:
+                continue
+            candidates.append({"start_time": start_time, "end_time": end_time})
+
+        if not candidates:
+            return []
+
+        candidates = sorted(candidates, key=lambda item: item["start_time"])
+        closest_days: list[Any] = []
+        selected: list[dict[str, Any]] = []
+        for candidate in candidates:
+            slot_day = candidate["start_time"].date()
+            if slot_day not in closest_days:
+                if len(closest_days) >= 3:
+                    continue
+                closest_days.append(slot_day)
+
+            selected.append(candidate)
+            if len(selected) >= 8:
+                break
+
+        for index, option in enumerate(selected, start=1):
+            option["option_index"] = index
+
+        return selected
+
+    def _format_doctor_availability_message(
+        self,
+        options: list[dict[str, Any]],
+        invalid_option: int | None = None,
+    ) -> str:
+        lines: list[str] = []
+        if invalid_option is not None:
+            lines.append(f"Nao encontrei a opcao {invalid_option}.")
+            lines.append("")
+
+        lines.append("Encontrei seus horarios disponiveis mais proximos:")
+        for option in options:
+            lines.append(f"{option['option_index']}. {self._format_slot_datetime(option['start_time'])}")
+
+        lines.append("")
+        lines.append("Me diga o numero da opcao e o nome do paciente para eu agendar.")
+        return "\n".join(lines)
 
     async def _list_available_specialties(self, token: str) -> list[str]:
         doctors = await self._users_client.get_doctors(token=token, limit=100)
@@ -1370,7 +1791,7 @@ class ChatbotService:
                     detail = text
 
             if detail:
-                detail_text = str(detail).strip()
+                detail_text = ChatbotService._sanitize_service_error_detail(str(detail).strip())
                 if len(detail_text) > 220:
                     detail_text = detail_text[:217] + "..."
                 return f"{prefix} {detail_text}"
@@ -1379,6 +1800,21 @@ class ChatbotService:
                 return f"{prefix} O servico retornou status {status_code}."
 
         return f"{prefix} Tente novamente em instantes."
+
+    @staticmethod
+    def _sanitize_service_error_detail(detail: str) -> str:
+        normalized = str(detail or "").strip()
+        lowered = normalized.lower()
+
+        if "patient profile was not found" in lowered or "patient was not found" in lowered:
+            return "Nao encontrei o cadastro do paciente informado."
+        if "doctor profile was not found" in lowered or "doctor was not found" in lowered:
+            return "Nao encontrei o cadastro do medico informado."
+
+        sanitized = re.sub(r"\busersapi\b", "cadastro de usuarios", normalized, flags=re.IGNORECASE)
+        sanitized = re.sub(r"\bappointmentsapi\b", "agenda", sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(r"\s{2,}", " ", sanitized).strip(" .")
+        return sanitized or "Nao foi possivel concluir a operacao."
 
     def _select_recent_option_from_history(
         self,
@@ -1399,6 +1835,25 @@ class ChatbotService:
             return matched[0]
 
         return None
+
+    def _select_recent_doctor_availability_option_from_history(
+        self,
+        history: list[dict[str, Any]],
+        message: str,
+        option_index: int | None,
+    ) -> dict[str, Any] | None:
+        options = self._parse_recent_doctor_availability_options_from_history(history)
+        if not options:
+            return None
+
+        if option_index is not None:
+            return next((item for item in options if item["option_index"] == option_index), None)
+
+        parsed_start = self._extract_start_time_from_text(message)
+        if parsed_start is None:
+            return None
+
+        return next((item for item in options if item.get("start_time") == parsed_start), None)
 
     def _parse_recent_schedule_options_from_history(self, history: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for item in reversed(history or []):
@@ -1428,6 +1883,41 @@ class ChatbotService:
                         "option_index": int(match.group(1)),
                         "doctor_name": match.group(2).strip(),
                         "specialty": match.group(3).strip(),
+                        "start_time": parsed_start,
+                    }
+                )
+
+            if parsed_options:
+                return parsed_options
+
+        return []
+
+    def _parse_recent_doctor_availability_options_from_history(self, history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for item in reversed(history or []):
+            if str(item.get("sender", "")).lower() != "assistant":
+                continue
+
+            content = str(item.get("content", ""))
+            if "Encontrei seus horarios disponiveis mais proximos:" not in content:
+                continue
+
+            parsed_options: list[dict[str, Any]] = []
+            for line in content.splitlines():
+                match = re.match(
+                    r"^\s*(\d{1,2})\.\s*(.+?)\s*$",
+                    line.strip(),
+                    flags=re.IGNORECASE,
+                )
+                if not match:
+                    continue
+
+                parsed_start = self._parse_display_slot_datetime(match.group(2))
+                if parsed_start is None:
+                    continue
+
+                parsed_options.append(
+                    {
+                        "option_index": int(match.group(1)),
                         "start_time": parsed_start,
                     }
                 )
@@ -1507,6 +1997,141 @@ class ChatbotService:
         if not match:
             return None
         return match.group(1).strip()
+
+    @staticmethod
+    def _extract_patient_name_hint(message: str) -> str | None:
+        text = re.sub(r"\s+", " ", str(message or "")).strip()
+        if not text:
+            return None
+
+        patterns = [
+            r"(?:paciente)\s+([a-zA-ZÀ-ÿ' ]{3,80})",
+            r"(?:para\s+o\s+paciente|para\s+a\s+paciente|para\s+paciente)\s+([a-zA-ZÀ-ÿ' ]{3,80})",
+            r"(?:opcao\s*\d+\s*para|opção\s*\d+\s*para|para\s+o|para\s+a)\s+([a-zA-ZÀ-ÿ' ]{3,80})",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                candidate = match.group(1).strip(" .,:;!?")
+                candidate = re.sub(r"\b(hoje|amanha|amanhã|as|às)\b.*$", "", candidate, flags=re.IGNORECASE).strip()
+                candidate = re.sub(r"\d.*$", "", candidate).strip()
+                candidate = re.sub(r"\b(eu|agendar|marcar|consulta)\b.*$", "", candidate, flags=re.IGNORECASE).strip()
+                normalized = re.sub(r"\s+", " ", candidate)
+                if normalized and not any(char.isdigit() for char in normalized):
+                    return normalized
+
+        bare_candidate = text.strip(" .,:;!?")
+        if re.fullmatch(r"[a-zA-ZÀ-ÿ' ]{3,80}", bare_candidate):
+            lowered = bare_candidate.lower()
+            blocked = {"agendar", "consulta", "marcar", "horario", "hoje", "amanha", "amanhã"}
+            if all(token not in lowered for token in blocked):
+                return re.sub(r"\s+", " ", bare_candidate)
+
+        return None
+
+    def _infer_recent_patient_name_from_history(self, history: list[dict[str, Any]]) -> str | None:
+        for item in reversed(history or []):
+            if str(item.get("sender", "")).lower() != "user":
+                continue
+
+            candidate = self._extract_patient_name_hint(str(item.get("content", "")))
+            if candidate:
+                return candidate
+
+        return None
+
+    @classmethod
+    def _select_patient_match_by_name(
+        cls,
+        requested_name: str,
+        matches: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+
+        requested_normalized = cls._normalize_match_text(requested_name)
+        exact_matches = [
+            item
+            for item in matches
+            if cls._normalize_match_text(str(item.get("name", ""))) == requested_normalized
+        ]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+
+        return None
+
+    @staticmethod
+    def _extract_start_time_from_text(message: str) -> datetime | None:
+        text = str(message or "").strip()
+        if not text:
+            return None
+
+        local_tz = timezone(timedelta(hours=-3))
+        now_local = datetime.now(local_tz)
+        normalized = text.replace("às", "as").replace("ÀS", "as")
+
+        iso_match = re.search(r"(\d{4})-(\d{2})-(\d{2})[ tT](\d{2}):(\d{2})", normalized)
+        if iso_match:
+            year = int(iso_match.group(1))
+            month = int(iso_match.group(2))
+            day = int(iso_match.group(3))
+            hour = int(iso_match.group(4))
+            minute = int(iso_match.group(5))
+            try:
+                local_value = datetime(year, month, day, hour, minute, tzinfo=local_tz)
+            except ValueError:
+                return None
+            return local_value.astimezone(timezone.utc)
+
+        relative_match = re.search(r"\b(hoje|amanha|amanhã)\b.*?(\d{1,2})(?::(\d{2}))?\s*(h)?", normalized, flags=re.IGNORECASE)
+        if relative_match:
+            keyword = relative_match.group(1).lower()
+            hour = int(relative_match.group(2))
+            minute = int(relative_match.group(3) or "00")
+            if hour > 23 or minute > 59:
+                return None
+            day_offset = 1 if keyword in {"amanha", "amanhã"} else 0
+            local_date = (now_local + timedelta(days=day_offset)).date()
+            local_value = datetime(
+                local_date.year,
+                local_date.month,
+                local_date.day,
+                hour,
+                minute,
+                tzinfo=local_tz,
+            )
+            return local_value.astimezone(timezone.utc)
+
+        date_time_match = re.search(
+            r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\s*(?:as|a)?\s*(\d{1,2})(?::(\d{2}))?\s*(h)?",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+        if not date_time_match:
+            return None
+
+        day = int(date_time_match.group(1))
+        month = int(date_time_match.group(2))
+        year = int(date_time_match.group(3)) if date_time_match.group(3) else now_local.year
+        hour = int(date_time_match.group(4))
+        minute = int(date_time_match.group(5) or "00")
+        if hour > 23 or minute > 59:
+            return None
+
+        try:
+            local_value = datetime(year, month, day, hour, minute, tzinfo=local_tz)
+        except ValueError:
+            return None
+
+        if not date_time_match.group(3) and local_value < now_local - timedelta(days=1):
+            try:
+                local_value = datetime(year + 1, month, day, hour, minute, tzinfo=local_tz)
+            except ValueError:
+                return None
+
+        return local_value.astimezone(timezone.utc)
 
     @staticmethod
     def _is_specialty_catalog_request(message: str) -> bool:
@@ -1692,6 +2317,25 @@ class ChatbotService:
 
             content = str(item.get("content", "")).lower()
             return "qual especialidade" in content and "horarios disponiveis" in content
+
+        return False
+
+    @staticmethod
+    def _was_waiting_for_doctor_scheduling_details(history: list[dict[str, Any]]) -> bool:
+        for item in reversed(history or []):
+            if str(item.get("sender", "")).lower() != "assistant":
+                continue
+
+            content = str(item.get("content", "")).lower()
+            if "nome completo do paciente" in content:
+                return True
+            if "data e horario de inicio da consulta" in content:
+                return True
+            if "numero da opcao e o nome do paciente" in content:
+                return True
+            if "esse horario ja passou" in content:
+                return True
+            return False
 
         return False
 

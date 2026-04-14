@@ -1,5 +1,5 @@
 import { ChangeEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Paperclip, Send, User } from "lucide-react";
+import { Bot, Paperclip, RotateCcw, Send, User } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { DoctorLayout } from "@/components/layouts/DoctorLayout";
 import { PatientLayout } from "@/components/layouts/PatientLayout";
@@ -441,21 +441,54 @@ export default function AssistenteVirtual() {
     chatMutation.mutate(trimmedInput);
   }
 
+  function handleResetChat() {
+    if (chatMutation.isPending || uploadMutation.isPending) {
+      return;
+    }
+
+    setMessages([createInitialMessage(isDoctor)]);
+    setConversationId(undefined);
+    setInput("");
+
+    if (typeof window !== "undefined" && chatStorageKey) {
+      window.localStorage.removeItem(chatStorageKey);
+    }
+
+    toast({
+      title: "Chat reiniciado",
+      description: "Pronto. O assistente vai iniciar uma nova conversa sem contexto anterior.",
+    });
+  }
+
   return (
     <Layout>
       <div className="h-[calc(100vh-12rem)] flex flex-col animate-slide-up">
         <Card className="flex-1 flex flex-col overflow-hidden">
           <div className="p-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center">
-                <Bot className="w-5 h-5 text-primary-foreground" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <h2 className="font-semibold">{headerText}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {chatMutation.isPending ? "Respondendo..." : "Online"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-semibold">{headerText}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {chatMutation.isPending ? "Respondendo..." : "Online"}
-                </p>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleResetChat}
+                disabled={chatMutation.isPending || uploadMutation.isPending}
+                title="Reiniciar conversa"
+                className="shrink-0"
+              >
+                <RotateCcw className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Reiniciar chat</span>
+              </Button>
             </div>
           </div>
 

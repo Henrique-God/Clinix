@@ -44,6 +44,25 @@ class UsersClient:
             response.raise_for_status()
             return list(response.json())
 
+    async def get_patients(
+        self,
+        token: str,
+        search: str | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": max(1, min(limit, 100))}
+        if search and search.strip():
+            params["search"] = search.strip()
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{self._base_url}/directory/patients",
+                headers=self._auth_headers(token),
+                params=params,
+            )
+            response.raise_for_status()
+            return list(response.json())
+
     async def create_document_entry(
         self,
         token: str,
