@@ -8,10 +8,12 @@ import {
   Globe2,
   Lock,
   Trash2,
+  X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { WeeklyCalendar } from "@/components/schedule/WeeklyCalendar";
 import { DoctorLayout } from "@/components/layouts/DoctorLayout";
+import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { appointmentsApi } from "@/lib/api/clinix-api";
 import { resolveScheduleVisibility } from "@/lib/api/domain";
+import { HEALTH_INSURANCE_PLANS } from "@/lib/health-insurance-plans";
 import {
   WeeklyCalendarItem,
   buildAvailabilityPayloads,
@@ -43,7 +46,22 @@ export default function GestaoHorarios() {
     startTime: "",
     endTime: "",
     visibility: "Public" as "Public" | "Private",
+    acceptsPrivate: true,
+    acceptsInsurance: false,
   });
+  const [slotInsurancePlans, setSlotInsurancePlans] = useState<string[]>([]);
+
+  const doctorAcceptedPlans = useMemo(
+    () => profile?.acceptedInsurancePlans ?? [],
+    [profile],
+  );
+  const availablePlansForSlot = useMemo(
+    () =>
+      doctorAcceptedPlans.length > 0
+        ? doctorAcceptedPlans
+        : (HEALTH_INSURANCE_PLANS as unknown as string[]),
+    [doctorAcceptedPlans],
+  );
 
   const weekDays = useMemo(() => buildDoctorWeekDays(weekStart), [weekStart]);
 
@@ -74,6 +92,11 @@ export default function GestaoHorarios() {
         formData.startTime,
         formData.endTime,
         formData.visibility,
+        {
+          acceptsPrivate: formData.acceptsPrivate,
+          acceptsInsurance: formData.acceptsInsurance,
+          insurancePlans: formData.acceptsInsurance ? slotInsurancePlans : undefined,
+        },
       );
 
       for (const payload of payloads) {
@@ -83,10 +106,13 @@ export default function GestaoHorarios() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["appointments", "availability"] });
       setSelectedDates([]);
+      setSlotInsurancePlans([]);
       setFormData({
         startTime: "",
         endTime: "",
         visibility: "Public",
+        acceptsPrivate: true,
+        acceptsInsurance: false,
       });
       toast({
         title: "Horários adicionados",
@@ -283,6 +309,80 @@ export default function GestaoHorarios() {
                     <SelectItem value="Private">Privada</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <Label className="text-sm font-medium">Tipo de consulta aceita</Label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.acceptsPrivate}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, acceptsPrivate: e.target.checked }))
+                      }
+                      className="rounded border-input"
+                    />
+                    Particular
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.acceptsInsurance}
+                      onChange={(e) => {
+                        setFormData((prev) => ({ ...prev, acceptsInsurance: e.target.checked }));
+                        if (!e.target.checked) setSlotInsurancePlans([]);
+                      }}
+                      className="rounded border-input"
+                    />
+                    Plano de saúde
+                  </label>
+                </div>
+
+                {formData.acceptsInsurance && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Planos aceitos neste horário</Label>
+                    <Select
+                      value=""
+                      onValueChange={(value) => {
+                        if (!slotInsurancePlans.includes(value)) {
+                          setSlotInsurancePlans((prev) => [...prev, value]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Adicionar plano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePlansForSlot
+                          .filter((plan) => !slotInsurancePlans.includes(plan))
+                          .map((plan) => (
+                            <SelectItem key={plan} value={plan}>
+                              {plan}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    {slotInsurancePlans.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {slotInsurancePlans.map((plan) => (
+                          <Badge key={plan} variant="secondary" className="gap-1 pr-1 text-xs">
+                            {plan}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSlotInsurancePlans((prev) => prev.filter((p) => p !== plan))
+                              }
+                              className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Button

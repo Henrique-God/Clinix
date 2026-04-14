@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Stepper } from "@/components/Stepper";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -130,6 +131,18 @@ export default function SelecionarMedico() {
                       <p className="text-sm text-muted-foreground mt-1">
                         {doctor.specialties.join(", ")}
                       </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {doctor.consultationPriceCents != null && (
+                          <Badge variant="outline" className="text-xs">
+                            Particular: R$ {(doctor.consultationPriceCents / 100).toFixed(2)}
+                          </Badge>
+                        )}
+                        {(doctor.acceptedInsurancePlans?.length ?? 0) > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            Aceita plano: {doctor.acceptedInsurancePlans!.join(", ")}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </button>
                 );

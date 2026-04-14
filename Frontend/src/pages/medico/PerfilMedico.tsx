@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Mail, PencilLine, RefreshCcw, ShieldCheck, Stethoscope } from "lucide-react";
+import { DollarSign, Mail, PencilLine, RefreshCcw, ShieldCheck, Stethoscope, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { DoctorLayout } from "@/components/layouts/DoctorLayout";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -13,9 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usersApi } from "@/lib/api/clinix-api";
+import { HEALTH_INSURANCE_PLANS } from "@/lib/health-insurance-plans";
 
 export default function PerfilMedico() {
   const { session, profile, refreshProfile } = useAuth();
@@ -26,7 +29,9 @@ export default function PerfilMedico() {
     professionalRegister: "",
     phone: "",
     specialties: "",
+    consultationPrice: "",
   });
+  const [selectedPlans, setSelectedPlans] = useState<string[]>([]);
 
   useEffect(() => {
     setFormData({
@@ -34,11 +39,16 @@ export default function PerfilMedico() {
       professionalRegister: profile?.professionalRegister ?? "",
       phone: profile?.phone ?? "",
       specialties: (profile?.specialties ?? []).join(", "),
+      consultationPrice: profile?.consultationPriceCents
+        ? (profile.consultationPriceCents / 100).toFixed(2)
+        : "",
     });
+    setSelectedPlans(profile?.acceptedInsurancePlans ?? []);
   }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
+      const priceValue = parseFloat(formData.consultationPrice);
       await usersApi.updateDoctorProfile(session!.token, {
         name: formData.name.trim(),
         professionalRegister: formData.professionalRegister.trim(),
@@ -47,6 +57,8 @@ export default function PerfilMedico() {
           .split(",")
           .map((item) => item.trim())
           .filter(Boolean),
+        consultationPriceCents: !isNaN(priceValue) ? Math.round(priceValue * 100) : null,
+        acceptedInsurancePlans: selectedPlans.length > 0 ? selectedPlans : undefined,
       });
     },
     onSuccess: async () => {
@@ -150,6 +162,64 @@ export default function PerfilMedico() {
                       placeholder="Ex: Cardiologia, Clinica Geral"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Preço da consulta particular (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.consultationPrice}
+                      onChange={(event) =>
+                        setFormData((current) => ({
+                          ...current,
+                          consultationPrice: event.target.value,
+                        }))
+                      }
+                      placeholder="Ex: 250.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Planos de saúde aceitos</Label>
+                    <Select
+                      value=""
+                      onValueChange={(value) => {
+                        if (!selectedPlans.includes(value)) {
+                          setSelectedPlans((prev) => [...prev, value]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Adicionar plano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HEALTH_INSURANCE_PLANS.filter(
+                          (plan) => !selectedPlans.includes(plan),
+                        ).map((plan) => (
+                          <SelectItem key={plan} value={plan}>
+                            {plan}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedPlans.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {selectedPlans.map((plan) => (
+                          <Badge key={plan} variant="secondary" className="gap-1 pr-1">
+                            {plan}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedPlans((prev) => prev.filter((p) => p !== plan))
+                              }
+                              className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <Button
                     className="w-full"
                     onClick={() => updateProfileMutation.mutate()}
@@ -201,6 +271,15 @@ export default function PerfilMedico() {
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Telefone</p>
                 <p className="mt-1 font-medium">{profile?.phone ?? "Não informado"}</p>
               </div>
+              <div className="rounded-xl bg-secondary/40 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Preço da consulta particular</p>
+                <p className="mt-1 flex items-center gap-2 font-medium">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  {profile?.consultationPriceCents
+                    ? `R$ ${(profile.consultationPriceCents / 100).toFixed(2)}`
+                    : "Não informado"}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -232,6 +311,30 @@ export default function PerfilMedico() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Planos de saúde aceitos</CardTitle>
+            <CardDescription>
+              Convênios que você aceita para agendamento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(profile?.acceptedInsurancePlans?.length ?? 0) > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {(profile?.acceptedInsurancePlans ?? []).map((plan) => (
+                  <Badge key={plan} variant="secondary" className="px-3 py-1.5">
+                    {plan}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-6 text-sm text-muted-foreground">
+                Nenhum plano de saúde configurado. Edite seu perfil para adicionar planos aceitos.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DoctorLayout>
   );

@@ -9,4 +9,8 @@ public class User : IUser
     public UserType UserType { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
+    public string? Cpf { get; set; }
+    public string? Phone { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+    public string? HealthInsurance { get; set; }
 }

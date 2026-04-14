@@ -20,12 +20,21 @@ export interface CurrentUserProfile {
   professionalRegister?: string | null;
   phone?: string | null;
   specialties?: string[];
+  cpf?: string | null;
+  dateOfBirth?: string | null;
+  healthInsurance?: string | null;
+  consultationPriceCents?: number | null;
+  acceptedInsurancePlans?: string[];
 }
 
 export interface RegisterPatientRequest {
   name: string;
   email: string;
   password: string;
+  cpf?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  healthInsurance?: string;
 }
 
 export interface RegisterDoctorRequest {
@@ -42,6 +51,8 @@ export interface UpdateDoctorProfileRequest {
   professionalRegister: string;
   specialties: string[];
   phone: string;
+  consultationPriceCents?: number | null;
+  acceptedInsurancePlans?: string[];
 }
 
 export interface DirectoryUser {
@@ -59,6 +70,8 @@ export interface DoctorDirectoryItem {
   professionalRegister: string;
   phone: string;
   specialties: string[];
+  consultationPriceCents?: number | null;
+  acceptedInsurancePlans?: string[];
 }
 
 export interface DoctorDirectoryQuery {
@@ -83,6 +96,11 @@ export interface ResolvedCurrentUserProfile {
   professionalRegister?: string | null;
   phone?: string | null;
   specialties: string[];
+  cpf?: string | null;
+  dateOfBirth?: string | null;
+  healthInsurance?: string | null;
+  consultationPriceCents?: number | null;
+  acceptedInsurancePlans: string[];
 }
 
 const userTypeByNumber: Record<number, AppUserType> = {
@@ -125,5 +143,10 @@ export function resolveCurrentUserProfile(
     professionalRegister: input.professionalRegister ?? null,
     phone: input.phone ?? null,
     specialties: input.specialties ?? [],
+    cpf: input.cpf ?? null,
+    dateOfBirth: input.dateOfBirth ?? null,
+    healthInsurance: input.healthInsurance ?? null,
+    consultationPriceCents: input.consultationPriceCents ?? null,
+    acceptedInsurancePlans: input.acceptedInsurancePlans ?? [],
   };
 }

@@ -54,7 +54,8 @@ public class InternalIntegrationController : ControllerBase
             isActive = user.IsActive,
             name = user.Name,
             professionalRegister = doctorProfile?.ProfessionalRegister,
-            specialties
+            specialties,
+            consultationPriceCents = doctorProfile?.ConsultationPriceCents
         });
     }
 

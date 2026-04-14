@@ -55,7 +55,9 @@ public class DirectoryController : ControllerBase
                 Name = user.Name,
                 ProfessionalRegister = profile.ProfessionalRegister,
                 Phone = profile.Phone,
-                SerializedSpecialties = profile.Specialties
+                SerializedSpecialties = profile.Specialties,
+                ConsultationPriceCents = profile.ConsultationPriceCents,
+                SerializedAcceptedInsurancePlans = profile.AcceptedInsurancePlans
             })
             .ToListAsync(cancellationToken);
 
@@ -137,7 +139,9 @@ public class DirectoryController : ControllerBase
             Name = projection.Name,
             ProfessionalRegister = projection.ProfessionalRegister,
             Phone = projection.Phone,
-            Specialties = DeserializeSpecialties(projection.SerializedSpecialties)
+            Specialties = DeserializeSpecialties(projection.SerializedSpecialties),
+            ConsultationPriceCents = projection.ConsultationPriceCents,
+            AcceptedInsurancePlans = DeserializeSpecialties(projection.SerializedAcceptedInsurancePlans ?? "")
         };
     }
 
@@ -156,5 +160,7 @@ public class DirectoryController : ControllerBase
         public string ProfessionalRegister { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string SerializedSpecialties { get; set; } = string.Empty;
+        public int? ConsultationPriceCents { get; set; }
+        public string? SerializedAcceptedInsurancePlans { get; set; }
     }
 }

@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { HEALTH_INSURANCE_PLANS } from "@/lib/health-insurance-plans";
 
 export default function CadastroPaciente() {
   const navigate = useNavigate();
@@ -16,9 +18,13 @@ export default function CadastroPaciente() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nome: "",
+    cpf: "",
     email: "",
+    telefone: "",
+    dataNascimento: "",
     senha: "",
     confirmarSenha: "",
+    planoSaude: "",
   });
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -44,6 +50,10 @@ export default function CadastroPaciente() {
         name: formData.nome.trim(),
         email: formData.email.trim(),
         password: formData.senha,
+        cpf: formData.cpf.trim() || undefined,
+        phone: formData.telefone.trim() || undefined,
+        dateOfBirth: formData.dataNascimento || undefined,
+        healthInsurance: formData.planoSaude || undefined,
       });
 
       navigate(resolveHomePath(session.userType), { replace: true });
@@ -97,18 +107,81 @@ export default function CadastroPaciente() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cpf">CPF</Label>
+                  <Input
+                    id="cpf"
+                    name="cpf"
+                    placeholder="000.000.000-00"
+                    value={formData.cpf}
+                    onChange={handleChange}
+                    className="input-focus"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dataNascimento">Data de nascimento</Label>
+                  <Input
+                    id="dataNascimento"
+                    name="dataNascimento"
+                    type="date"
+                    value={formData.dataNascimento}
+                    onChange={handleChange}
+                    className="input-focus"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="input-focus"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="telefone">Telefone</Label>
+                  <Input
+                    id="telefone"
+                    name="telefone"
+                    placeholder="(11) 99999-9999"
+                    value={formData.telefone}
+                    onChange={handleChange}
+                    className="input-focus"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="input-focus"
+                <Label htmlFor="planoSaude">Plano de saúde</Label>
+                <Select
+                  value={formData.planoSaude}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, planoSaude: value }))
+                  }
                   disabled={isSubmitting}
-                />
+                >
+                  <SelectTrigger className="input-focus">
+                    <SelectValue placeholder="Selecione seu plano (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HEALTH_INSURANCE_PLANS.map((plan) => (
+                      <SelectItem key={plan} value={plan}>
+                        {plan}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,11 +213,6 @@ export default function CadastroPaciente() {
                 </div>
               </div>
 
-              <div className="rounded-lg bg-secondary/50 p-4 text-sm text-muted-foreground">
-                Campos como CPF, telefone, convênio e data de nascimento ainda não estão disponíveis neste cadastro.
-                Por enquanto, vamos trabalhar com os dados que já podem ser salvos com segurança.
-              </div>
-
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
@@ -156,7 +224,7 @@ export default function CadastroPaciente() {
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                  {isSubmitting ? "Criando conta..." : "Salvar cadastro"}
+                  {isSubmitting ? "Criando conta..." : "Criar conta"}
                 </Button>
               </div>
             </form>

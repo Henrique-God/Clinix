@@ -33,6 +33,9 @@ public class UsersDbContext : DbContext, IUsersDbContext
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.PasswordHash).HasMaxLength(256);
+            entity.Property(e => e.Cpf).HasMaxLength(14);
+            entity.Property(e => e.Phone).HasMaxLength(32);
+            entity.Property(e => e.HealthInsurance).HasMaxLength(128);
         });
 
         modelBuilder.Entity<DoctorProfile>(entity =>
@@ -44,6 +47,7 @@ public class UsersDbContext : DbContext, IUsersDbContext
             entity.Property(e => e.NormalizedProfessionalRegister).HasMaxLength(64);
             entity.Property(e => e.Specialties).HasMaxLength(2000);
             entity.Property(e => e.Phone).HasMaxLength(32);
+            entity.Property(e => e.AcceptedInsurancePlans).HasMaxLength(2000);
 
             entity.HasOne<User>()
                 .WithOne()

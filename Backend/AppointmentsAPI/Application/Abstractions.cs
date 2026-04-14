@@ -47,4 +47,6 @@ public sealed class UserDirectoryEntry
     public string? ProfessionalRegister { get; set; }
 
     public IReadOnlyCollection<string> Specialties { get; set; } = Array.Empty<string>();
+
+    public int? ConsultationPriceCents { get; set; }
 }

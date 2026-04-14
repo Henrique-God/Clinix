@@ -69,6 +69,11 @@ export function buildAvailabilityPayloads(
   startTime: string,
   endTime: string,
   visibility: "Public" | "Private",
+  options?: {
+    acceptsPrivate?: boolean;
+    acceptsInsurance?: boolean;
+    insurancePlans?: string[];
+  },
 ) {
   const uniqueDates = new Map<string, Date>();
 
@@ -82,6 +87,9 @@ export function buildAvailabilityPayloads(
       startTime: buildIsoRangeForDate(date, startTime),
       endTime: buildIsoRangeForDate(date, endTime),
       visibility,
+      acceptsPrivate: options?.acceptsPrivate,
+      acceptsInsurance: options?.acceptsInsurance,
+      insurancePlans: options?.insurancePlans,
     }));
 }
 

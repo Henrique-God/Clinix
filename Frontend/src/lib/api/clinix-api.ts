@@ -78,6 +78,9 @@ interface AvailabilityCreateRequest {
   startTime: string;
   endTime: string;
   visibility: ScheduleVisibility;
+  acceptsPrivate?: boolean;
+  acceptsInsurance?: boolean;
+  insurancePlans?: string[];
 }
 
 interface AvailabilityQuery {
@@ -90,6 +93,7 @@ interface AvailableSlotQuery {
   fromUtc: string;
   toUtc: string;
   durationMinutes?: number;
+  insurancePlan?: string;
 }
 
 interface CalendarQuery {
@@ -341,7 +345,12 @@ export const appointmentsApi = {
   getAvailableSlots(token: string, doctorId: string, query: AvailableSlotQuery) {
     return requestJson<AvailableSlot[]>(
       apiConfig.appointmentsApiUrl,
-      `/doctors/${doctorId}/available-slots${buildQueryString(query)}`,
+      `/doctors/${doctorId}/available-slots${buildQueryString({
+        fromUtc: query.fromUtc,
+        toUtc: query.toUtc,
+        durationMinutes: query.durationMinutes,
+        insurancePlan: query.insurancePlan,
+      })}`,
       {
         method: "GET",
         token,

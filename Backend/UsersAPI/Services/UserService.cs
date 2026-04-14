@@ -30,7 +30,11 @@ public class UserService : IUserService
             Name = request.Name.Trim(),
             UserType = UserType.User,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Cpf = request.Cpf?.Trim(),
+            Phone = request.Phone?.Trim(),
+            DateOfBirth = request.DateOfBirth,
+            HealthInsurance = request.HealthInsurance?.Trim()
         };
 
         context.Users.Add(user);

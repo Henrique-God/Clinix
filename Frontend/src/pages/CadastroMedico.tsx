@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { resolveHomePath, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,12 +33,12 @@ export default function CadastroMedico() {
     nome: "",
     crm: "",
     estado: "",
-    especialidade: "",
     telefone: "",
     email: "",
     senha: "",
     confirmarSenha: "",
   });
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     setFormData({ ...formData, [event.target.name]: event.target.value });
@@ -59,9 +60,9 @@ export default function CadastroMedico() {
       return;
     }
 
-    if (!formData.especialidade) {
+    if (selectedSpecialties.length === 0) {
       toast({
-        title: "Especialidade obrigatoria",
+        title: "Especialidade obrigatória",
         description: "Selecione ao menos uma especialidade para concluir o cadastro.",
         variant: "destructive",
       });
@@ -78,7 +79,7 @@ export default function CadastroMedico() {
       const session = await registerDoctor({
         name: formData.nome.trim(),
         professionalRegister,
-        specialties: [formData.especialidade],
+        specialties: selectedSpecialties,
         email: formData.email.trim(),
         phone: formData.telefone.trim(),
         password: formData.senha,
@@ -170,23 +171,50 @@ export default function CadastroMedico() {
               </div>
 
               <div className="space-y-2">
-                <Label>Especialidade</Label>
+                <Label>Especialidades</Label>
                 <Select
-                  value={formData.especialidade}
-                  onValueChange={(value) => handleSelectChange("especialidade", value)}
+                  value=""
+                  onValueChange={(value) => {
+                    if (!selectedSpecialties.includes(value)) {
+                      setSelectedSpecialties((prev) => [...prev, value]);
+                    }
+                  }}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="input-focus">
-                    <SelectValue placeholder="Selecione uma especialidade" />
+                    <SelectValue placeholder="Adicionar especialidade" />
                   </SelectTrigger>
                   <SelectContent>
-                    {especialidades.map((especialidade) => (
-                      <SelectItem key={especialidade} value={especialidade}>
-                        {especialidade}
-                      </SelectItem>
-                    ))}
+                    {especialidades
+                      .filter((e) => !selectedSpecialties.includes(e))
+                      .map((especialidade) => (
+                        <SelectItem key={especialidade} value={especialidade}>
+                          {especialidade}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                {selectedSpecialties.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedSpecialties.map((spec) => (
+                      <Badge key={spec} variant="secondary" className="gap-1 pr-1">
+                        {spec}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedSpecialties((prev) =>
+                              prev.filter((s) => s !== spec),
+                            )
+                          }
+                          className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                          disabled={isSubmitting}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

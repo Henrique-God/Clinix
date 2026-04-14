@@ -5,8 +5,10 @@ import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { Stepper } from "@/components/Stepper";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { appointmentsApi } from "@/lib/api/clinix-api";
 import { formatTimeLabel } from "@/lib/date-utils";
@@ -26,24 +28,30 @@ export default function SelecionarDataHora() {
   const especialidade = searchParams.get("especialidade") || "";
   const medico = searchParams.get("medico") || "";
 
+  const patientInsurance = session?.profile?.healthInsurance ?? null;
+
   const [weekStart, setWeekStart] = useState(
     startOfWeek(new Date(), { weekStartsOn: 1 }),
   );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(null);
+  const [consultationType, setConsultationType] = useState<"all" | "private" | "insurance">("all");
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
     [weekStart],
   );
 
+  const insurancePlanFilter = consultationType === "insurance" && patientInsurance ? patientInsurance : undefined;
+
   const availableSlotsQuery = useQuery({
-    queryKey: ["appointments", "available-slots", medico, weekStart.toISOString()],
+    queryKey: ["appointments", "available-slots", medico, weekStart.toISOString(), insurancePlanFilter],
     queryFn: () =>
       appointmentsApi.getAvailableSlots(session!.token, medico, {
         fromUtc: weekStart.toISOString(),
         toUtc: addDays(weekStart, 7).toISOString(),
         durationMinutes: 30,
+        insurancePlan: insurancePlanFilter,
     }),
     enabled: Boolean(session?.token && medico),
   });
@@ -109,9 +117,27 @@ export default function SelecionarDataHora() {
           <h1 className="text-2xl font-bold text-center mb-2">
             Selecione data e horário
           </h1>
-          <p className="text-muted-foreground text-center mb-8">
+          <p className="text-muted-foreground text-center mb-4">
             Escolha um horário público disponível para enviar o convite de consulta.
           </p>
+
+          <div className="flex justify-center mb-6">
+            <Select
+              value={consultationType}
+              onValueChange={(value) => setConsultationType(value as "all" | "private" | "insurance")}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os horários</SelectItem>
+                <SelectItem value="private">Apenas particular</SelectItem>
+                {patientInsurance && (
+                  <SelectItem value="insurance">Pelo meu plano ({patientInsurance})</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex items-center justify-between mb-6">
             <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, -7))}>
@@ -174,7 +200,7 @@ export default function SelecionarDataHora() {
                   locale: ptBR,
                 })}
               </h3>
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {selectedDateSlots.map((slot) => {
                   const isSelected = selectedSlotStart === slot.startTime;
 
@@ -182,9 +208,24 @@ export default function SelecionarDataHora() {
                     <button
                       key={slot.startTime}
                       onClick={() => setSelectedSlotStart(slot.startTime)}
-                      className={cn("time-slot", isSelected && "selected")}
+                      className={cn(
+                        "time-slot flex flex-col items-center gap-1 py-3",
+                        isSelected && "selected",
+                      )}
                     >
-                      {formatTimeLabel(slot.startTime)}
+                      <span className="font-medium">{formatTimeLabel(slot.startTime)}</span>
+                      <div className="flex flex-wrap justify-center gap-1">
+                        {slot.acceptsPrivate && slot.consultationPriceCents != null && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            R$ {(slot.consultationPriceCents / 100).toFixed(0)}
+                          </Badge>
+                        )}
+                        {slot.acceptsInsurance && slot.insurancePlans.length > 0 && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                            Plano
+                          </Badge>
+                        )}
+                      </div>
                     </button>
                   );
                 })}

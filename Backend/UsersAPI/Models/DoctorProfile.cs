@@ -8,4 +8,6 @@ public class DoctorProfile
     public string Specialties { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public int? ConsultationPriceCents { get; set; }
+    public string? AcceptedInsurancePlans { get; set; }
 }

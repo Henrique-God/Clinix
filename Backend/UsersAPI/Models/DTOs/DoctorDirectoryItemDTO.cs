@@ -7,4 +7,6 @@ public class DoctorDirectoryItemDTO
     public string ProfessionalRegister { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public IReadOnlyCollection<string> Specialties { get; set; } = Array.Empty<string>();
+    public int? ConsultationPriceCents { get; set; }
+    public IReadOnlyCollection<string> AcceptedInsurancePlans { get; set; } = Array.Empty<string>();
 }

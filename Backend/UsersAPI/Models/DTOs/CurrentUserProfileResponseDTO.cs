@@ -12,4 +12,9 @@ public class CurrentUserProfileResponseDTO
     public string? ProfessionalRegister { get; set; }
     public string? Phone { get; set; }
     public IReadOnlyCollection<string> Specialties { get; set; } = Array.Empty<string>();
+    public string? Cpf { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+    public string? HealthInsurance { get; set; }
+    public int? ConsultationPriceCents { get; set; }
+    public IReadOnlyCollection<string> AcceptedInsurancePlans { get; set; } = Array.Empty<string>();
 }

@@ -13,6 +13,12 @@ public sealed class CreateAvailabilityRequestDto
 
     [Required]
     public ScheduleVisibility Visibility { get; set; }
+
+    public bool AcceptsPrivate { get; set; } = true;
+
+    public bool AcceptsInsurance { get; set; }
+
+    public List<string>? InsurancePlans { get; set; }
 }
 
 public sealed class UpdateAvailabilityRequestDto
@@ -25,6 +31,12 @@ public sealed class UpdateAvailabilityRequestDto
 
     [Required]
     public ScheduleVisibility Visibility { get; set; }
+
+    public bool AcceptsPrivate { get; set; } = true;
+
+    public bool AcceptsInsurance { get; set; }
+
+    public List<string>? InsurancePlans { get; set; }
 }
 
 public sealed class AvailabilityQueryDto
@@ -46,6 +58,8 @@ public sealed class AvailableSlotsQueryDto
 
     [Range(15, 240)]
     public int DurationMinutes { get; set; } = 30;
+
+    public string? InsurancePlan { get; set; }
 }
 
 public sealed class AvailabilityResponseDto
@@ -59,6 +73,12 @@ public sealed class AvailabilityResponseDto
     public DateTime EndTime { get; set; }
 
     public ScheduleVisibility Visibility { get; set; }
+
+    public bool AcceptsPrivate { get; set; }
+
+    public bool AcceptsInsurance { get; set; }
+
+    public IReadOnlyCollection<string> InsurancePlans { get; set; } = Array.Empty<string>();
 
     public DateTime CreatedAt { get; set; }
 
@@ -74,4 +94,12 @@ public sealed class AvailableSlotResponseDto
     public DateTime StartTime { get; set; }
 
     public DateTime EndTime { get; set; }
+
+    public bool AcceptsPrivate { get; set; }
+
+    public bool AcceptsInsurance { get; set; }
+
+    public IReadOnlyCollection<string> InsurancePlans { get; set; } = Array.Empty<string>();
+
+    public int? ConsultationPriceCents { get; set; }
 }

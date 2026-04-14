@@ -19,4 +19,9 @@ public class UpdateDoctorProfileRequestDTO
     [Required]
     [MaxLength(32)]
     public string Phone { get; set; } = string.Empty;
+
+    [Range(0, int.MaxValue)]
+    public int? ConsultationPriceCents { get; set; }
+
+    public List<string>? AcceptedInsurancePlans { get; set; }
 }
