@@ -11,51 +11,14 @@ namespace UsersAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Cpf",
-                schema: "users",
-                table: "Users",
-                type: "character varying(14)",
-                maxLength: 14,
-                nullable: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "DateOfBirth",
-                schema: "users",
-                table: "Users",
-                type: "timestamp with time zone",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "HealthInsurance",
-                schema: "users",
-                table: "Users",
-                type: "character varying(128)",
-                maxLength: 128,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "Phone",
-                schema: "users",
-                table: "Users",
-                type: "character varying(32)",
-                maxLength: 32,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "AcceptedInsurancePlans",
-                schema: "users",
-                table: "DoctorProfiles",
-                type: "character varying(2000)",
-                maxLength: 2000,
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "ConsultationPriceCents",
-                schema: "users",
-                table: "DoctorProfiles",
-                type: "integer",
-                nullable: true);
+            migrationBuilder.Sql(@"
+                ALTER TABLE users.""Users"" ADD COLUMN IF NOT EXISTS ""Cpf"" character varying(14);
+                ALTER TABLE users.""Users"" ADD COLUMN IF NOT EXISTS ""DateOfBirth"" timestamp with time zone;
+                ALTER TABLE users.""Users"" ADD COLUMN IF NOT EXISTS ""HealthInsurance"" character varying(128);
+                ALTER TABLE users.""Users"" ADD COLUMN IF NOT EXISTS ""Phone"" character varying(32);
+                ALTER TABLE users.""DoctorProfiles"" ADD COLUMN IF NOT EXISTS ""AcceptedInsurancePlans"" character varying(2000);
+                ALTER TABLE users.""DoctorProfiles"" ADD COLUMN IF NOT EXISTS ""ConsultationPriceCents"" integer;
+            ");
         }
 
         /// <inheritdoc />

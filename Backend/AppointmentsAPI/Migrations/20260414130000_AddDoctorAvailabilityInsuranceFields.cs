@@ -10,29 +10,11 @@ public partial class AddDoctorAvailabilityInsuranceFields : Migration
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<bool>(
-            name: "AcceptsInsurance",
-            schema: "appointments",
-            table: "doctor_availability",
-            type: "boolean",
-            nullable: false,
-            defaultValue: false);
-
-        migrationBuilder.AddColumn<bool>(
-            name: "AcceptsPrivate",
-            schema: "appointments",
-            table: "doctor_availability",
-            type: "boolean",
-            nullable: false,
-            defaultValue: true);
-
-        migrationBuilder.AddColumn<string>(
-            name: "InsurancePlans",
-            schema: "appointments",
-            table: "doctor_availability",
-            type: "character varying(2000)",
-            maxLength: 2000,
-            nullable: true);
+        migrationBuilder.Sql(@"
+            ALTER TABLE appointments.doctor_availability ADD COLUMN IF NOT EXISTS ""AcceptsInsurance"" boolean NOT NULL DEFAULT false;
+            ALTER TABLE appointments.doctor_availability ADD COLUMN IF NOT EXISTS ""AcceptsPrivate"" boolean NOT NULL DEFAULT true;
+            ALTER TABLE appointments.doctor_availability ADD COLUMN IF NOT EXISTS ""InsurancePlans"" character varying(2000);
+        ");
     }
 
     /// <inheritdoc />
