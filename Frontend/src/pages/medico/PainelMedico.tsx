@@ -234,6 +234,28 @@ export default function PainelMedico() {
     },
   });
 
+  const cancelAppointmentMutation = useMutation({
+    mutationFn: (appointmentId: string) =>
+      appointmentsApi.cancelAppointment(session!.token, appointmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["appointments", "doctor"] });
+      await queryClient.invalidateQueries({ queryKey: ["appointments", "calendar"] });
+      setAppointmentDialogItemId(null);
+      toast({
+        title: "Consulta cancelada",
+        description: "A consulta foi cancelada com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Não foi possível cancelar a consulta",
+        description:
+          error instanceof Error ? error.message : "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const appointments = useMemo(() => appointmentsQuery.data ?? [], [appointmentsQuery.data]);
   const availabilities = useMemo(() => availabilityQuery.data ?? [], [availabilityQuery.data]);
   const weeklyCalendarItems = useMemo(
@@ -783,6 +805,24 @@ export default function PainelMedico() {
                   >
                     Ir para o prontuário
                   </Button>
+                  {(() => {
+                    const status = resolveAppointmentStatus(selectedAppointmentForDialog.status);
+                    const canCancel =
+                      (status === "PendingAcceptance" || status === "Accepted") &&
+                      new Date(selectedAppointmentForDialog.startTime) > new Date();
+                    return canCancel ? (
+                      <Button
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() =>
+                          cancelAppointmentMutation.mutate(selectedAppointmentForDialog.id)
+                        }
+                        disabled={cancelAppointmentMutation.isPending}
+                      >
+                        Cancelar consulta
+                      </Button>
+                    ) : null;
+                  })()}
                   {resolveAppointmentStatus(selectedAppointmentForDialog.status) === "PendingAcceptance" ? (
                     <>
                       <Button

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal, TypedDict
 
 from langfuse import Langfuse
@@ -59,6 +59,7 @@ class ChatGraphState(TypedDict, total=False):
     actor: CurrentActor
     message: str
     patient_id: str | None
+    patient_insurance_plan: str | None
     conversation_id: str
     history: list[dict[str, Any]]
     summary: str
@@ -118,6 +119,7 @@ class ChatbotService:
         message: str,
         patient_id: str | None = None,
         conversation_id: str | None = None,
+        patient_insurance_plan: str | None = None,
     ) -> tuple[ChatIntent, str, dict[str, Any]]:
         invoke_config = self._build_invoke_config(
             actor=actor,
@@ -128,6 +130,7 @@ class ChatbotService:
             "actor": actor,
             "message": message,
             "patient_id": patient_id,
+            "patient_insurance_plan": patient_insurance_plan,
             "conversation_id": conversation_id or "",
             "invoke_config": invoke_config,
         }
@@ -234,6 +237,12 @@ class ChatbotService:
                         "Neste fluxo o sistema chamara RAG.\n"
                         "Use document_ingestion para pedidos de envio/leitura/ingestao de laudo, receita, imagem ou PDF.\n"
                         "Quando o usuario perguntar por especialidades disponiveis, use scheduling com operation=schedule.\n"
+                        "Para scheduling com filtro de cobertura, inclua parameters.insurance_filter: "
+                        "'plan' (so horarios cobertos pelo plano do paciente), "
+                        "'private' (so consultas particulares) ou "
+                        "'all' (todos os horarios, padrao). "
+                        "Use 'plan' quando o usuario mencionar plano de saude, convenio ou operadora. "
+                        "Use 'private' quando mencionar particular, sem plano ou custo direto.\n"
                         "{format_instructions}"
                     ),
                 ),
@@ -615,10 +624,17 @@ class ChatbotService:
         if context.get("doctor_name"):
             lookup_parameters["doctor_name"] = context["doctor_name"]
 
+        insurance_filter = str(parameters.get("insurance_filter", "all")).lower()
+        patient_plan = state.get("patient_insurance_plan")
+        insurance_plan_param: str | None = None
+        if insurance_filter == "plan" and patient_plan and patient_plan.lower() not in ("none", "nenhum", ""):
+            insurance_plan_param = patient_plan
+
         options = await self._build_patient_schedule_options(
             token=actor.token,
             parameters=lookup_parameters,
             message=message,
+            insurance_plan=insurance_plan_param,
         )
         if not options:
             return {
@@ -995,6 +1011,48 @@ class ChatbotService:
 
         return None
 
+    @staticmethod
+    def _extract_specific_date(message: str) -> date | None:
+        normalized = ChatbotService._normalize_match_text(message)
+        today = datetime.now(timezone(timedelta(hours=-3))).date()
+
+        if "depois de amanha" in normalized:
+            return today + timedelta(days=2)
+
+        if "amanha" in normalized:
+            return today + timedelta(days=1)
+
+        month_map = {
+            "janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5,
+            "junho": 6, "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10,
+            "novembro": 11, "dezembro": 12,
+        }
+        m = re.search(r"\b(\d{1,2})\s+de\s+(\w+)", normalized)
+        if m:
+            day, month_str = int(m.group(1)), m.group(2)
+            month = month_map.get(month_str)
+            if month:
+                year = today.year
+                if month < today.month or (month == today.month and day < today.day):
+                    year += 1
+                try:
+                    return date(year, month, day)
+                except ValueError:
+                    pass
+
+        m = re.search(r"\b(\d{1,2})/(\d{1,2})\b", normalized)
+        if m:
+            day, month = int(m.group(1)), int(m.group(2))
+            year = today.year
+            if month < today.month or (month == today.month and day < today.day):
+                year += 1
+            try:
+                return date(year, month, day)
+            except ValueError:
+                pass
+
+        return None
+
     @classmethod
     def _fallback_plan(cls, message: str) -> OrchestrationPlan:
         lowered = (message or "").lower()
@@ -1171,6 +1229,7 @@ class ChatbotService:
         weekday_filter = self._extract_weekday_filter(message)
         if excluded_weekday is not None and weekday_filter == excluded_weekday:
             weekday_filter = None
+        specific_date = self._extract_specific_date(message)
 
         # If the doctor selected a listed option, trust that slot over planner-generated timestamps.
         if isinstance(selected_start_time, datetime):
@@ -1203,7 +1262,7 @@ class ChatbotService:
         if start_time is None and asks_availability:
             try:
                 from_utc: datetime | None = None
-                if asks_more_availability and recent_options:
+                if asks_more_availability and recent_options and not specific_date:
                     last_start = max(
                         (
                             item.get("start_time")
@@ -1222,6 +1281,7 @@ class ChatbotService:
                     from_utc=from_utc,
                     weekday_filter=weekday_filter,
                     excluded_weekday=excluded_weekday,
+                    specific_date=specific_date,
                 )
             except Exception as exc:
                 return {
@@ -1361,6 +1421,7 @@ class ChatbotService:
         token: str,
         parameters: dict[str, Any],
         message: str,
+        insurance_plan: str | None = None,
     ) -> list[dict[str, Any]]:
         search = self._first_param(parameters, "doctor_name", "doctor", "search")
         specialty = self._first_param(parameters, "specialty", "especialidade")
@@ -1383,8 +1444,18 @@ class ChatbotService:
         if not doctors:
             return []
 
-        from_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-        to_utc = from_utc + timedelta(days=21)
+        specific_date = self._extract_specific_date(message)
+        tz_brasilia = timezone(timedelta(hours=-3))
+        if specific_date:
+            day_start = datetime(specific_date.year, specific_date.month, specific_date.day, 0, 0, tzinfo=tz_brasilia)
+            day_end = datetime(specific_date.year, specific_date.month, specific_date.day, 23, 59, tzinfo=tz_brasilia)
+            from_utc = day_start.astimezone(timezone.utc)
+            to_utc = day_end.astimezone(timezone.utc)
+            max_days = 1
+        else:
+            from_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+            to_utc = from_utc + timedelta(days=21)
+            max_days = 3
         from_utc_iso = self._to_utc_iso(from_utc)
         to_utc_iso = self._to_utc_iso(to_utc)
 
@@ -1402,6 +1473,7 @@ class ChatbotService:
                     from_utc=from_utc_iso,
                     to_utc=to_utc_iso,
                     duration_minutes=duration_minutes,
+                    insurance_plan=insurance_plan,
                 )
             )
 
@@ -1448,7 +1520,7 @@ class ChatbotService:
         for candidate in candidates:
             slot_day = candidate["start_time"].date()
             if slot_day not in closest_days:
-                if len(closest_days) >= 3:
+                if len(closest_days) >= max_days:
                     continue
                 closest_days.append(slot_day)
 
@@ -1469,17 +1541,27 @@ class ChatbotService:
         from_utc: datetime | None = None,
         weekday_filter: int | None = None,
         excluded_weekday: int | None = None,
+        specific_date: date | None = None,
     ) -> list[dict[str, Any]]:
-        window_start = (from_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
-        now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-        if window_start < now_utc:
-            window_start = now_utc
-        to_utc = window_start + timedelta(days=21)
+        tz_brasilia = timezone(timedelta(hours=-3))
+        if specific_date:
+            day_start = datetime(specific_date.year, specific_date.month, specific_date.day, 0, 0, tzinfo=tz_brasilia)
+            day_end = datetime(specific_date.year, specific_date.month, specific_date.day, 23, 59, tzinfo=tz_brasilia)
+            window_start = day_start.astimezone(timezone.utc)
+            window_end = day_end.astimezone(timezone.utc)
+            max_days = 1
+        else:
+            window_start = (from_utc or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+            now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+            if window_start < now_utc:
+                window_start = now_utc
+            window_end = window_start + timedelta(days=21)
+            max_days = 3
         slots = await self._appointments_client.get_available_slots(
             token=token,
             doctor_id=doctor_id,
             from_utc=self._to_utc_iso(window_start),
-            to_utc=self._to_utc_iso(to_utc),
+            to_utc=self._to_utc_iso(window_end),
             duration_minutes=duration_minutes,
         )
 
@@ -1489,7 +1571,7 @@ class ChatbotService:
             end_time = self._parse_iso_datetime(slot.get("endTime"))
             if not start_time or not end_time or end_time <= start_time:
                 continue
-            local_weekday = start_time.astimezone(timezone(timedelta(hours=-3))).weekday()
+            local_weekday = start_time.astimezone(tz_brasilia).weekday()
             if weekday_filter is not None and local_weekday != weekday_filter:
                 continue
             if excluded_weekday is not None and local_weekday == excluded_weekday:
@@ -1505,7 +1587,7 @@ class ChatbotService:
         for candidate in candidates:
             slot_day = candidate["start_time"].date()
             if slot_day not in closest_days:
-                if len(closest_days) >= 3:
+                if len(closest_days) >= max_days:
                     continue
                 closest_days.append(slot_day)
 

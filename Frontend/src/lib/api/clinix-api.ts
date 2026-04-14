@@ -116,6 +116,7 @@ interface ChatMessageRequest {
   patient_id?: string;
   conversation_id?: string;
   conversation_context?: string;
+  patient_insurance_plan?: string | null;
 }
 
 interface RagQueryRequest {

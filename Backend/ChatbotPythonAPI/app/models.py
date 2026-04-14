@@ -20,6 +20,7 @@ class ChatMessageRequest(BaseModel):
     patient_id: str | None = None
     conversation_id: str | None = None
     conversation_context: str | None = None
+    patient_insurance_plan: str | None = None
 
 
 class ChatMessageResponse(BaseModel):
