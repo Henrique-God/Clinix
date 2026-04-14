@@ -1,7 +1,7 @@
 const defaultApiUrls = {
-  users: "http://localhost:5001",
-  appointments: "http://localhost:5002",
-  chatbot: "http://localhost:5003",
+  users: "http://100.48.67.10:5001",
+  appointments: "http://100.48.67.10:5002",
+  chatbot: "http://100.48.67.10:5003",
 };
 
 export const apiConfig = {
