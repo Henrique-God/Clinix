@@ -1,0 +1,103 @@
+services:
+  users-api:
+    build:
+      context: .
+      dockerfile: Backend/UsersAPI/Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+      Appointments__BaseUrl: http://appointments-api:8080/
+      Appointments__InternalApiKey: ${APPOINTMENTS_INTERNAL_API_KEY}
+      InternalServices__ApiKey: ${USERS_INTERNAL_API_KEY}
+      Cors__AllowedOrigins: ${FRONTEND_ALLOWED_ORIGINS}
+      Aws__Region: ${AWS_REGION}
+      Aws__S3BucketName: ${S3_BUCKET}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET}
+      Stripe__PriceId: ${STRIPE_PRICE_ID}
+      Stripe__TrialDays: ${STRIPE_TRIAL_DAYS:-14}
+      Strava__ClientId: ${STRAVA_CLIENT_ID}
+      Strava__ClientSecret: ${STRAVA_CLIENT_SECRET}
+      Strava__RedirectUri: ${STRAVA_REDIRECT_URI}
+    restart: unless-stopped
+
+  appointments-api:
+    build:
+      context: .
+      dockerfile: Backend/AppointmentsAPI/Dockerfile
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: Clinix
+      Jwt__Audience: Clinix
+      UsersApi__BaseUrl: http://users-api:8080/
+      UsersApi__InternalApiKey: ${USERS_INTERNAL_API_KEY}
+      ClinicalRecords__BaseUrl: http://users-api:8080/
+      ClinicalRecords__InternalApiKey: ${USERS_INTERNAL_API_KEY}
+      InternalServices__ApiKey: ${APPOINTMENTS_INTERNAL_API_KEY}
+      Cors__AllowedOrigins: ${FRONTEND_ALLOWED_ORIGINS}
+    depends_on:
+      - users-api
+    restart: unless-stopped
+
+  chatbot-api:
+    build:
+      context: .
+      dockerfile: Backend/ChatbotPythonAPI/Dockerfile
+    ports:
+      - "5003:8080"
+    environment:
+      APP_ENV: Development
+      JWT_KEY: ${JWT_KEY}
+      JWT_ISSUER: Clinix
+      JWT_AUDIENCE: Clinix
+      APPOINTMENTS_API_BASE_URL: http://appointments-api:8080/
+      USERS_API_BASE_URL: http://users-api:8080/
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL:-gpt-4o-mini}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4o}
+      OPENAI_REQUEST_TIMEOUT_SECONDS: ${OPENAI_REQUEST_TIMEOUT_SECONDS:-120}
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-true}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
+      LANGFUSE_TRACING_ENVIRONMENT: ${LANGFUSE_TRACING_ENVIRONMENT:-development}
+      LANGFUSE_TRACING_ENABLED: ${LANGFUSE_TRACING_ENABLED:-true}
+      CHROMA_PERSIST_PATH: /data/chroma
+      CHROMA_COLLECTION_NAME: clinical_documents
+      EMBEDDING_MODEL_NAME: intfloat/multilingual-e5-base
+      CHAT_MEMORY_POSTGRES_DSN: ${DB_CONNECTION}
+      CHAT_MEMORY_WINDOW_MESSAGES: ${CHAT_MEMORY_WINDOW_MESSAGES:-12}
+      CORS_ALLOWED_ORIGINS: ${FRONTEND_ALLOWED_ORIGINS}
+    volumes:
+      - chatbot-chroma:/data/chroma
+    depends_on:
+      - users-api
+      - appointments-api
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - users-api
+      - appointments-api
+      - chatbot-api
+    restart: unless-stopped
+
+volumes:
+  chatbot-chroma:

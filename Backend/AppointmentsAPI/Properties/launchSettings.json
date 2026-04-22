@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "AppointmentsAPI": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:59501;http://localhost:59504"
+    }
+  }
+}
