@@ -94,7 +94,19 @@ nunit-*.xml
 
 #Arquivo env
 .env
+.env.*
+!.env.example
 .venv
+
+# Local secrets and certificates
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+secrets.*
+credentials.*
 
 # Cache do Python
 __pycache__/

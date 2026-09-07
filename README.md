@@ -1,210 +1,130 @@
-# Clinix — Plataforma de Saúde (Microsserviços)
+# Clinix
 
-## Resumo pra rodar (Matheus)
+## 1. Project context
 
-No diretório raiz:
+Clinix is an AI-powered medical appointment management system developed as part of the Software Engineering Laboratory II (PCS3852) course at the Polytechnic School of the University of São Paulo (USP).
 
-```bash
-cp .env.example .env
-```
+Contributors:
 
-Altere o .env com seus respectivos valores, depois só rodar:
+- Henrique Godoy - [@Henrique-God](https://github.com/Henrique-God)
+- Guilherme Gomes - [@Guilhermetxgomes](https://github.com/Guilhermetxgomes)
+- Nicholas Sasaki Ogata - [@nichoogata](https://github.com/nichoogata)
+- Matheus Guidoni - [@Santos-Moura](https://github.com/Santos-Moura)
 
-```bash
-docker-compose up --build
-```
+The project received a grade of 10, the highest grade in the class, after being evaluated by both the course professors and Visagio.
 
-## Arquitetura
+## 2. What the software does
 
-```
+Clinix centralizes the main workflows of a digital healthcare platform. The application supports patient and doctor registration, authentication, professional search, appointment management, consultation invitations, acceptance, rejection, cancellation, completion, and clinical record tracking.
+
+Main features:
+
+- Separate registration, login, and profiles for patients and doctors.
+- Medical scheduling with availability, calendar blocks, and appointment views.
+- Appointment flow through invitations, acceptance, rejection, cancellation, and completion.
+- Digital clinical records with entries, documents, access permissions, and patient history.
+- Clinical document upload and ingestion with OCR and RAG support.
+- Premium subscription integration with Stripe.
+- Strava integration and workout routines for wellness tracking.
+- React web frontend for patient and doctor workflows.
+
+One of the project's main differentiators is the integrated chatbot. It receives user messages, detects intent, queries internal services and database-backed data, and answers based on real system information such as appointments, scheduling data, and clinical history. The chatbot also includes conversational memory in PostgreSQL and uses RAG to answer questions about previously ingested clinical documents and records.
+
+## 3. Microservices architecture
+
+The project is organized as a monorepo with a frontend, independent APIs, and shared backend components.
+
+```text
 Clinix/
 ├── Backend/
-│   ├── UsersAPI/            → Autenticação JWT + Prontuários  (porta 5001)
-│   ├── AppointmentsAPI/     → Agendamentos                   (porta 5002)
-│   ├── ChatbotPythonAPI/    → Assistente IA (RAG + OCR + OpenAI) (porta 5003)
-│   └── Shared/              → Biblioteca compartilhada (JWT validation)
-├── Frontend/                → React app                       (porta 3000)
-├── docker-compose.yml
-└── .env.example
+│   ├── UsersAPI/            -> authentication, users, doctors, patients, clinical records, Stripe, and Strava
+│   ├── AppointmentsAPI/     -> scheduling, availability, invitations, and appointment lifecycle
+│   ├── ChatbotPythonAPI/    -> chatbot, OCR, RAG, OpenAI, LangChain/LangGraph, and conversation memory
+│   └── Shared/              -> shared components, such as JWT validation
+├── Frontend/                -> React web application
+├── docker-compose.yml       -> local service orchestration
+└── .env.example             -> expected environment variables
 ```
 
-## Pré-requisitos
+Main services:
 
-- .NET 8 SDK
-- Docker + Docker Compose
-- Node.js 20+
-- Python 3.12+
+| Service | Technology | Local port | Responsibility |
+| --- | --- | --- | --- |
+| UsersAPI | ASP.NET Core / .NET 8 | 5001 | Users, authentication, clinical records, subscriptions, and integrations |
+| AppointmentsAPI | ASP.NET Core / .NET 8 | 5002 | Appointments, availability, and calendar |
+| ChatbotPythonAPI | FastAPI / Python | 5003 | Chat, RAG, OCR, and AI integration |
+| Frontend | React / Vite | 3000 | Product web interface |
 
----
+The APIs communicate through internal HTTP calls, protected by JWT and internal service keys. Relational data is stored in PostgreSQL, separated by domain schemas, while the chatbot keeps a Chroma vector index for semantic retrieval over clinical documents.
 
-## Executar com Docker Compose (todos os serviços)
+## 4. How to run the project
+
+Prerequisites:
+
+- Docker and Docker Compose
+- .NET 8 SDK, if running the APIs manually
+- Node.js 20+, if running the frontend manually
+- Python 3.12+, if running the chatbot manually
+
+### Running everything with Docker Compose
+
+From the project root:
 
 ```bash
-# 1. Copie e preencha as variáveis de ambiente
 cp .env.example .env
+```
 
-# 2. Suba todos os serviços
+Fill the `.env` file with the required credentials and local configuration. Then run:
+
+```bash
 docker compose up --build
+```
 
-# 3. Para derrubar
+Local URLs:
+
+| Service | URL | Documentation |
+| --- | --- | --- |
+| Frontend | http://localhost:3000 | - |
+| UsersAPI | http://localhost:5001 | http://localhost:5001/swagger |
+| AppointmentsAPI | http://localhost:5002 | http://localhost:5002/swagger |
+| ChatbotPythonAPI | http://localhost:5003 | http://localhost:5003/docs |
+
+To stop the services:
+
+```bash
 docker compose down
 ```
 
-| Serviço           | URL local              | Swagger                           |
-| ----------------- | ---------------------- | --------------------------------- |
-| UsersAPI          | http://localhost:5001  | http://localhost:5001/swagger      |
-| AppointmentsAPI   | http://localhost:5002  | http://localhost:5002/swagger      |
-| ChatbotPythonAPI  | http://localhost:5003  | http://localhost:5003/docs         |
-| Frontend          | http://localhost:3000  | —                                 |
+### Running services individually
 
----
+UsersAPI:
 
-## Executar serviços individualmente (desenvolvimento)
-
-### UsersAPI
 ```bash
 cd Backend/UsersAPI
 dotnet run
-# Disponível em http://localhost:5001
 ```
 
-### AppointmentsAPI
+AppointmentsAPI:
+
 ```bash
 cd Backend/AppointmentsAPI
 dotnet run
-# Disponível em http://localhost:5002
 ```
 
-### ChatbotPythonAPI
+ChatbotPythonAPI:
+
 ```bash
 cd Backend/ChatbotPythonAPI
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 5003
-# Disponível em http://localhost:5003
 ```
 
-### Frontend
+Frontend:
+
 ```bash
 cd Frontend
 npm install
 npm run dev
-# Disponível em http://localhost:3000
 ```
 
----
-
-## Endpoints principais
-
-### UsersAPI (`/auth`)
-| Método | Rota           | Auth | Descrição              |
-| ------ | -------------- | ---- | ---------------------- |
-| POST   | /auth/login    | —    | Login (retorna JWT)    |
-| POST   | /auth/register | —    | Cadastro de usuário    |
-| GET    | /auth/me       | JWT  | Dados do usuário atual |
-
-### UsersAPI (`/clinical-records`)
-| Método | Rota              | Auth | Descrição          |
-| ------ | ----------------- | ---- | ------------------ |
-| GET    | /clinical-records | JWT  | Listar prontuários |
-| POST   | /clinical-records | JWT  | Criar prontuário   |
-
-### AppointmentsAPI (`/appointments`)
-| Método | Rota                 | Auth | Descrição        |
-| ------ | -------------------- | ---- | ---------------- |
-| GET    | /appointments/health | —    | Health check     |
-| GET    | /appointments        | JWT  | Listar consultas |
-| POST   | /appointments        | JWT  | Agendar consulta |
-
-### ChatbotPythonAPI
-| Método | Rota             | Auth | Descrição                     |
-| ------ | ---------------- | ---- | ----------------------------- |
-| POST   | /chatbot/message | JWT  | Enviar mensagem ao assistente |
-| POST   | /documents/ingest | JWT | Ingerir PDF/imagem e indexar no RAG |
-| GET    | /documents/{id}/status | JWT | Consultar status da ingestão |
-| POST   | /rag/query | JWT | Consulta semântica do histórico |
-
----
-
-## Banco de Dados (AWS RDS PostgreSQL)
-
-Todos os serviços SQL usam o mesmo RDS, separados por **schema**:
-
-```sql
--- Executar no RDS antes de rodar as migrations
-CREATE SCHEMA IF NOT EXISTS users;
-CREATE SCHEMA IF NOT EXISTS appointments;
-GRANT ALL ON SCHEMA users        TO clinix_app;
-GRANT ALL ON SCHEMA appointments TO clinix_app;
-```
-
-### Aplicar migrations
-
-```bash
-# UsersAPI
-cd Backend/UsersAPI
-dotnet ef database update
-
-# AppointmentsAPI
-cd Backend/AppointmentsAPI
-dotnet ef database update
-```
-
----
-
-## Build Docker individual
-
-```bash
-# Build a partir da raiz do projeto (necessário para o contexto de build)
-docker build -f Backend/UsersAPI/Dockerfile -t clinix/users-api .
-docker build -f Backend/AppointmentsAPI/Dockerfile -t clinix/appointments-api .
-docker build -f Backend/ChatbotPythonAPI/Dockerfile -t clinix/chatbot-api .
-
-# Remover container e imagem para rebuild limpo
-docker stop <nome> && docker rm <nome> && docker rmi <imagem>
-
-# Limpar cache de build
-docker builder prune -f
-```
-
----
-
-## Contexto funcional consolidado (produto)
-
-Este projeto (Clinix) cobre gestao de agenda medica/paciente e evolucao para prontuario digital e wellness premium.
-
-### Dominios e casos de uso
-
-1. Dominio A - Gestao de Acesso e Perfis
-- UC1: Cadastro de Pacientes
-- UC2: Cadastro de Medicos com especialidades
-
-2. Dominio B - Agendamento Inteligente
-- UC3: Cadastro de horarios disponiveis pelo profissional
-- UC4: Agendamento de consulta pelo paciente
-- UC5: Agendamento via chatbot
-- UC6: Visualizacao e gerenciamento de consultas (lista/calendario, proximas/concluidas)
-
-3. Dominio C - Prontuario Clinico Digital
-- UC7: Cadastro de receitas e pedidos
-- UC8: Cadastro de exames/laudos
-- UC9: Visualizacao de historico clinico unificado
-- UC10: Extracao de dados de documentos por IA (desafio adicional)
-
-4. Dominio D - Wellness e Monetizacao (Premium)
-- UC11: Integracao com Strava para acompanhamento multiprofissional
-- UC12: Cadastro de rotinas de treino (usuarios pagantes)
-
-### Regras funcionais gerais (transversais)
-
-- Recriar validacoes/regras/triggers legadas, exceto excecoes explicitas nas US.
-- Aplicar permissionamento por perfil (detalhes na planilha de acessos/permissoes).
-- Manter foco em fluxos simples e objetivos para reduzir friccao de uso.
-
-### Escopo inicial para evolucao da UsersAPI
-
-- Cadastro e autenticacao de pacientes e medicos (UC1 e UC2).
-- Base de prontuario clinico (UC7, UC8, UC9) com historico rastreavel.
-- Preparacao para integracao com AppointmentsAPI e ChatbotPythonAPI (UC3-UC6).
-- Estruturar fundacoes de autorizacao por papel e validacoes de dominio.
-
-Referencia tecnica detalhada para continuidade: `Backend/UsersAPI/TECH_CONTEXT.md`.
+Before using the APIs with a real database, configure `DB_CONNECTION` in `.env` and apply the required migrations for the .NET services.

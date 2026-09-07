@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     app_name: str = "Clinix Chatbot Python API"
     app_env: str = "development"
 
-    jwt_key: str = Field(default="NVTP+fg8XYlZMdUX9og01pJO2lCjddNKs7RYEZYf/PoZm56hG9kk66LOmQoIRGNX/DJHeIQ5zJ2oLQqpLF4jpw==")
+    jwt_key: str = Field(default="")
     jwt_issuer: str = Field(default="Clinix")
     jwt_audience: str = Field(default="Clinix")
     jwt_allowed_algorithms: str = Field(default="HS512,HS384,HS256")
